@@ -4,6 +4,7 @@
   "description": "Lightweight VS Code support for openclaw.json with live schema updates and Zod shadow diagnostics.",
   "version": "0.1.5",
   "publisher": "muxammadreza",
+  "packageManager": "pnpm@9.0.0",
   "license": "MIT",
   "icon": "assets/icon.png",
   "keywords": [
