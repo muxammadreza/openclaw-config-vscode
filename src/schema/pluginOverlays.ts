@@ -1,7 +1,14 @@
-import type { DiscoveredPlugin } from "./types";
+import type { PluginDiscoveryResult } from "./pluginDiscovery";
+import type {
+  DiscoveredChannelSurface,
+  DiscoveredPlugin,
+  DiscoveredPluginSurface,
+  DiscoveredProviderSurface,
+} from "./types";
 
 type JsonSchemaNode = Record<string, unknown>;
 type UiHintRecord = Record<string, Record<string, unknown>>;
+const DISCOVERY_HINT_MARKER = "__openclawAssistiveField";
 
 export type PluginSchemaOverlay = {
   schemaText: string;
@@ -11,44 +18,98 @@ export type PluginSchemaOverlay = {
 export function applyPluginOverlays(
   schemaText: string,
   uiHintsText: string,
-  plugins: readonly DiscoveredPlugin[],
+  discovery: PluginDiscoveryResult,
 ): PluginSchemaOverlay {
   const schema = parseRecord(schemaText);
   const uiHints = parseUiHints(uiHintsText);
 
-  const schemaWithPlugins = applyPluginIdConstraints(applyPluginSchemas(schema, plugins), plugins);
-  const hintsWithPlugins = applyPluginHints(uiHints, plugins);
+  const schemaWithPluginIds = applyPluginIdConstraints(schema, discovery.plugins);
+  const schemaWithPluginEntries = applyPluginEntrySurfaces(
+    schemaWithPluginIds,
+    discovery.pluginSurfaces.filter(isSchemaBacked),
+  );
+  const schemaWithChannels = applyChannelSurfaces(
+    schemaWithPluginEntries,
+    discovery.channelSurfaces.filter(isSchemaBacked),
+  );
+  const schemaWithProviders = applyProviderSurfaces(
+    schemaWithChannels,
+    discovery.providerSurfaces.filter(isSchemaBacked),
+  );
+
+  const hintsWithPluginEntries = applyPluginHints(uiHints, discovery.plugins, discovery.pluginSurfaces);
+  const hintsWithChannels = applyChannelHints(hintsWithPluginEntries, discovery.channelSurfaces);
+  const hintsWithProviders = applyProviderHints(hintsWithChannels, discovery.providerSurfaces);
 
   return {
-    schemaText: JSON.stringify(schemaWithPlugins, null, 2),
-    uiHintsText: JSON.stringify(hintsWithPlugins, null, 2),
+    schemaText: JSON.stringify(schemaWithProviders, null, 2),
+    uiHintsText: JSON.stringify(hintsWithProviders, null, 2),
   };
 }
 
-function applyPluginSchemas(
+function applyPluginEntrySurfaces(
   schema: JsonSchemaNode,
-  plugins: readonly DiscoveredPlugin[],
+  surfaces: readonly DiscoveredPluginSurface[],
 ): JsonSchemaNode {
+  if (surfaces.length === 0) {
+    return cloneJson(schema);
+  }
+
   const next = cloneJson(schema);
-  const rootProperties = asRecord(next["properties"]);
-  const pluginsNode = asRecord(rootProperties?.["plugins"]);
-  const pluginsProperties = asRecord(pluginsNode?.["properties"]);
-  const entriesNode = asRecord(pluginsProperties?.["entries"]);
-  if (!entriesNode) {
+  const branch = resolveBranchSchema(next, ["plugins", "entries"]);
+  if (!branch) {
     return next;
   }
 
-  const baseEntry = asRecord(entriesNode.additionalProperties) ?? { type: "object" };
-  const entryProperties = ensureRecord(entriesNode, "properties");
+  const entryProperties = ensureRecord(branch, "properties");
+  const baseEntry = asRecord(branch.additionalProperties) ?? { type: "object" };
 
-  for (const plugin of plugins) {
-    const entrySchema = cloneJson(baseEntry);
-    const entrySchemaProperties = ensureRecord(entrySchema, "properties");
-    if (plugin.configJsonSchema) {
-      const baseConfigSchema = asRecord(entrySchemaProperties.config);
-      entrySchemaProperties.config = mergeObjectSchema(baseConfigSchema, plugin.configJsonSchema);
-    }
-    entryProperties[plugin.id] = entrySchema;
+  for (const surface of surfaces) {
+    const existingEntry = asRecord(entryProperties[surface.id]) ?? cloneJson(baseEntry);
+    const entryProps = ensureRecord(existingEntry, "properties");
+    const baseConfig = asRecord(entryProps.config) ?? { type: "object", additionalProperties: true };
+    entryProps.config = mergeObjectSchema(baseConfig, surface.schema ?? {});
+    entryProperties[surface.id] = existingEntry;
+  }
+
+  return next;
+}
+
+function applyChannelSurfaces(
+  schema: JsonSchemaNode,
+  surfaces: readonly DiscoveredChannelSurface[],
+): JsonSchemaNode {
+  return applySurfaceSchemas(schema, ["channels"], surfaces);
+}
+
+function applyProviderSurfaces(
+  schema: JsonSchemaNode,
+  surfaces: readonly DiscoveredProviderSurface[],
+): JsonSchemaNode {
+  return applySurfaceSchemas(schema, ["models", "providers"], surfaces);
+}
+
+function applySurfaceSchemas(
+  schema: JsonSchemaNode,
+  branchPath: readonly string[],
+  surfaces: readonly { id: string; schema?: JsonSchemaNode }[],
+): JsonSchemaNode {
+  if (surfaces.length === 0) {
+    return cloneJson(schema);
+  }
+
+  const next = cloneJson(schema);
+  const branch = resolveBranchSchema(next, branchPath);
+  if (!branch) {
+    return next;
+  }
+
+  const entryProperties = ensureRecord(branch, "properties");
+  const baseEntry = asRecord(branch.additionalProperties) ?? { type: "object" };
+
+  for (const surface of surfaces) {
+    const existing = asRecord(entryProperties[surface.id]) ?? cloneJson(baseEntry);
+    entryProperties[surface.id] = mergeObjectSchema(existing, surface.schema ?? {});
   }
 
   return next;
@@ -57,15 +118,18 @@ function applyPluginSchemas(
 function applyPluginHints(
   uiHints: UiHintRecord,
   plugins: readonly DiscoveredPlugin[],
+  surfaces: readonly DiscoveredPluginSurface[],
 ): UiHintRecord {
   const next = cloneJson(uiHints);
+  const surfaceMap = new Map(surfaces.map((surface) => [surface.id, surface]));
 
   for (const plugin of plugins) {
     const pluginId = plugin.id.trim();
     if (!pluginId) {
       continue;
     }
-    const name = plugin.name?.trim() || pluginId;
+    const surface = surfaceMap.get(pluginId);
+    const name = plugin.name?.trim() || surface?.label?.trim() || pluginId;
     const basePath = `plugins.entries.${pluginId}`;
     next[basePath] = {
       ...next[basePath],
@@ -84,7 +148,7 @@ function applyPluginHints(
       help: `Plugin-defined config payload for ${pluginId}.`,
     };
 
-    for (const [relativePath, hint] of Object.entries(plugin.configUiHints ?? {})) {
+    for (const [relativePath, hint] of Object.entries(surface?.uiHints ?? plugin.configUiHints ?? {})) {
       const normalizedPath = relativePath.trim().replace(/^\./, "");
       if (!normalizedPath) {
         continue;
@@ -93,6 +157,72 @@ function applyPluginHints(
         ...next[`${basePath}.config.${normalizedPath}`],
         ...hint,
       };
+    }
+
+    if (surface?.confidence === "inferred") {
+      markAssistivePaths(next, surface.assistivePaths);
+    }
+  }
+
+  return next;
+}
+
+function applyChannelHints(
+  uiHints: UiHintRecord,
+  surfaces: readonly DiscoveredChannelSurface[],
+): UiHintRecord {
+  const next = cloneJson(uiHints);
+
+  for (const surface of surfaces) {
+    const basePath = `channels.${surface.id}`;
+    next[basePath] = {
+      ...next[basePath],
+      label: surface.label?.trim() || surface.id,
+      help: surface.description?.trim() || next[basePath]?.help,
+    };
+
+    for (const [relativePath, hint] of Object.entries(surface.uiHints ?? {})) {
+      const normalizedPath = relativePath.trim().replace(/^\./, "");
+      const targetPath = normalizedPath ? `${basePath}.${normalizedPath}` : basePath;
+      next[targetPath] = {
+        ...next[targetPath],
+        ...hint,
+      };
+    }
+
+    if (surface.confidence === "inferred") {
+      markAssistivePaths(next, surface.assistivePaths);
+    }
+  }
+
+  return next;
+}
+
+function applyProviderHints(
+  uiHints: UiHintRecord,
+  surfaces: readonly DiscoveredProviderSurface[],
+): UiHintRecord {
+  const next = cloneJson(uiHints);
+
+  for (const surface of surfaces) {
+    const basePath = `models.providers.${surface.id}`;
+    next[basePath] = {
+      ...next[basePath],
+      label: surface.label?.trim() || surface.id,
+      help: surface.description?.trim() || next[basePath]?.help,
+    };
+
+    for (const [relativePath, hint] of Object.entries(surface.uiHints ?? {})) {
+      const normalizedPath = relativePath.trim().replace(/^\./, "");
+      const targetPath = normalizedPath ? `${basePath}.${normalizedPath}` : basePath;
+      next[targetPath] = {
+        ...next[targetPath],
+        ...hint,
+      };
+    }
+
+    if (surface.confidence === "inferred") {
+      markAssistivePaths(next, surface.assistivePaths);
     }
   }
 
@@ -104,22 +234,25 @@ function applyPluginIdConstraints(
   plugins: readonly DiscoveredPlugin[],
 ): JsonSchemaNode {
   const next = cloneJson(schema);
-  const rootProperties = asRecord(next["properties"]);
-  const pluginsSchema = asRecord(rootProperties?.["plugins"]);
-  const pluginProperties = asRecord(pluginsSchema?.["properties"]);
+  const rootProperties = asRecord(next.properties);
+  const pluginsSchema = asRecord(rootProperties?.plugins);
+  const pluginProperties = asRecord(pluginsSchema?.properties);
   if (!pluginProperties) {
     return next;
   }
 
-  const pluginIds = plugins.map((plugin) => plugin.id).filter(Boolean).sort((left, right) => left.localeCompare(right));
+  const pluginIds = plugins
+    .map((plugin) => plugin.id)
+    .filter(Boolean)
+    .sort((left, right) => left.localeCompare(right));
   if (pluginIds.length === 0) {
     return next;
   }
 
   const allowSchema = asRecord(pluginProperties.allow);
   const denySchema = asRecord(pluginProperties.deny);
-  const slotsSchema = asRecord(pluginProperties.slots);
-  const slotProperties = asRecord(slotsSchema?.properties);
+  const slotsSchema = ensureBranchSchema(pluginProperties, "slots");
+  const slotProperties = ensureRecord(slotsSchema, "properties");
 
   if (allowSchema) {
     allowSchema.items = {
@@ -144,17 +277,37 @@ function applyPluginIdConstraints(
     .sort((left, right) => left.localeCompare(right));
 
   if (slotProperties) {
-    const memorySchema = asRecord(slotProperties.memory);
-    if (memorySchema && memoryIds.length > 0) {
-      memorySchema.enum = ["none", ...memoryIds];
-    }
+    const memorySchema = ensureBranchSchema(slotProperties, "memory");
+    memorySchema.type = "string";
+    memorySchema.enum = memoryIds.length > 0 ? ["none", ...memoryIds] : ["none"];
 
-    const contextSchema = asRecord(slotProperties.contextEngine);
-    if (contextSchema && contextEngineIds.length > 0) {
-      contextSchema.enum = ["legacy", ...contextEngineIds];
-    }
+    const contextSchema = ensureBranchSchema(slotProperties, "contextEngine");
+    contextSchema.type = "string";
+    contextSchema.enum =
+      contextEngineIds.length > 0 ? ["legacy", ...contextEngineIds] : ["legacy"];
   }
 
+  return next;
+}
+
+function resolveBranchSchema(
+  schema: JsonSchemaNode,
+  branchPath: readonly string[],
+): JsonSchemaNode | null {
+  let current: JsonSchemaNode | null = schema;
+  for (const segment of branchPath) {
+    const properties = asRecord(current?.properties);
+    current = asRecord(properties?.[segment]);
+    if (!current) {
+      return null;
+    }
+  }
+  return current;
+}
+
+function ensureBranchSchema(container: JsonSchemaNode, key: string): JsonSchemaNode {
+  const next = asRecord(container[key]) ?? {};
+  container[key] = next;
   return next;
 }
 
@@ -162,37 +315,7 @@ function mergeObjectSchema(
   baseSchema: JsonSchemaNode | null,
   pluginSchema: JsonSchemaNode,
 ): JsonSchemaNode {
-  const next = cloneJson(pluginSchema);
-  if (!baseSchema) {
-    return next;
-  }
-  if (baseSchema.type !== "object" || pluginSchema.type !== "object") {
-    return next;
-  }
-
-  const nextProperties = ensureRecord(next, "properties");
-  const baseProperties = asRecord(baseSchema.properties) ?? {};
-  for (const [key, value] of Object.entries(baseProperties)) {
-    if (!(key in nextProperties)) {
-      nextProperties[key] = cloneJson(value);
-    }
-  }
-
-  if (!("additionalProperties" in next) && "additionalProperties" in baseSchema) {
-    next.additionalProperties = cloneJson(baseSchema.additionalProperties);
-  }
-  if (!("propertyNames" in next) && "propertyNames" in baseSchema) {
-    next.propertyNames = cloneJson(baseSchema.propertyNames);
-  }
-
-  const baseRequired = Array.isArray(baseSchema.required) ? baseSchema.required : [];
-  const nextRequired = Array.isArray(next.required) ? next.required : [];
-  const mergedRequired = [...new Set([...baseRequired, ...nextRequired])];
-  if (mergedRequired.length > 0) {
-    next.required = mergedRequired;
-  }
-
-  return next;
+  return mergeSchemaNodes(baseSchema, pluginSchema);
 }
 
 function parseRecord(raw: string): JsonSchemaNode {
@@ -207,10 +330,123 @@ function parseRecord(raw: string): JsonSchemaNode {
 function parseUiHints(raw: string): UiHintRecord {
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return asRecord(parsed) as UiHintRecord ?? {};
+    return (asRecord(parsed) as UiHintRecord) ?? {};
   } catch {
     return {};
   }
+}
+
+function mergeSchemaNodes(
+  baseSchema: JsonSchemaNode | null,
+  overlaySchema: JsonSchemaNode | null,
+): JsonSchemaNode {
+  if (!baseSchema) {
+    return cloneJson(overlaySchema ?? {});
+  }
+  if (!overlaySchema || Object.keys(overlaySchema).length === 0) {
+    return cloneJson(baseSchema);
+  }
+
+  const baseType = typeof baseSchema.type === "string" ? baseSchema.type : undefined;
+  const overlayType = typeof overlaySchema.type === "string" ? overlaySchema.type : undefined;
+
+  if (!overlayType && baseType) {
+    const merged = cloneJson(baseSchema);
+    for (const [key, value] of Object.entries(overlaySchema)) {
+      if (key === "properties" || key === "required" || key === "additionalProperties") {
+        continue;
+      }
+      merged[key] = cloneJson(value);
+    }
+    return merged;
+  }
+
+  if (baseType !== "object" || overlayType !== "object") {
+    return cloneJson(overlaySchema);
+  }
+
+  const next = cloneJson(baseSchema);
+  const nextProperties = ensureRecord(next, "properties");
+  const overlayProperties = asRecord(overlaySchema.properties) ?? {};
+  for (const [key, value] of Object.entries(overlayProperties)) {
+    nextProperties[key] = mergeSchemaNodes(asRecord(nextProperties[key]), asRecord(value));
+  }
+
+  for (const [key, value] of Object.entries(overlaySchema)) {
+    if (key === "properties" || key === "required") {
+      continue;
+    }
+    if (key === "additionalProperties") {
+      const baseAdditional = next.additionalProperties;
+      if (isRecordLike(baseAdditional) && isRecordLike(value)) {
+        next.additionalProperties = mergeSchemaNodes(
+          asRecord(baseAdditional),
+          asRecord(value),
+        );
+      } else {
+        next.additionalProperties = cloneJson(value);
+      }
+      continue;
+    }
+    next[key] = cloneJson(value);
+  }
+
+  const baseRequired = Array.isArray(baseSchema.required) ? baseSchema.required : [];
+  const overlayRequired = Array.isArray(overlaySchema.required) ? overlaySchema.required : [];
+  const mergedRequired = [...new Set([...baseRequired, ...overlayRequired])];
+  if (mergedRequired.length > 0) {
+    next.required = mergedRequired;
+  }
+
+  return next;
+}
+
+function markAssistivePaths(
+  uiHints: UiHintRecord,
+  paths: readonly string[] | undefined,
+): void {
+  if (!paths || paths.length === 0) {
+    return;
+  }
+
+  const expanded = new Set<string>();
+  for (const rawPath of paths) {
+    const normalized = normalizePath(rawPath);
+    if (!normalized) {
+      continue;
+    }
+    const segments = normalized.split(".");
+    for (let index = 1; index <= segments.length; index += 1) {
+      const partial = segments.slice(0, index).join(".");
+      if (partial.endsWith(".*")) {
+        continue;
+      }
+      expanded.add(partial);
+    }
+  }
+
+  for (const discoveredPath of expanded) {
+    uiHints[discoveredPath] = {
+      ...uiHints[discoveredPath],
+      [DISCOVERY_HINT_MARKER]: true,
+    };
+  }
+}
+
+function isSchemaBacked(
+  surface: { confidence: string },
+): boolean {
+  return surface.confidence === "explicit" || surface.confidence === "derived";
+}
+
+function normalizePath(value: string): string {
+  return value
+    .trim()
+    .replace(/\[(\d+|\*)\]/g, ".$1")
+    .split(".")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .join(".");
 }
 
 function cloneJson<T>(value: T): T {
@@ -231,4 +467,8 @@ function asRecord(value: unknown): JsonSchemaNode | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonSchemaNode)
     : null;
+}
+
+function isRecordLike(value: unknown): boolean {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

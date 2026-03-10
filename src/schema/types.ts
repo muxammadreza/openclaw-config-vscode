@@ -61,6 +61,12 @@ export type SchemaStatus = {
 
 export type PluginDiscoverySource = "cli" | "manifest-fallback" | "unavailable";
 
+export type PluginCodeTraversalMode = "off" | "installed-sources" | "max-coverage";
+
+export type DiscoveryConfidence = "explicit" | "derived" | "inferred";
+
+export type DiscoveredSurfaceSource = "cli" | "manifest" | "bundled-sdk" | "code-ast";
+
 export type DiscoveredPlugin = {
   id: string;
   name?: string;
@@ -74,16 +80,68 @@ export type DiscoveredPlugin = {
   configUiHints?: Record<string, Record<string, unknown>>;
 };
 
+export type DiscoveredConfigSurface = {
+  id: string;
+  path: string;
+  schema?: Record<string, unknown>;
+  uiHints?: Record<string, Record<string, unknown>>;
+  assistivePaths?: string[];
+  source: DiscoveredSurfaceSource;
+  confidence: DiscoveryConfidence;
+  originPluginId: string;
+  label?: string;
+  description?: string;
+};
+
+export type DiscoveredPluginSurface = DiscoveredConfigSurface & {
+  kind: "plugin";
+};
+
+export type DiscoveredChannelSurface = DiscoveredConfigSurface & {
+  kind: "channel";
+};
+
+export type DiscoveredProviderSurface = DiscoveredConfigSurface & {
+  kind: "provider";
+};
+
 export type PluginDiscoveryStatus = {
   source: PluginDiscoverySource;
   commandPath: string;
   pluginCount: number;
+  channelCount: number;
+  providerCount: number;
+  schemaBackedSurfaceCount: number;
+  assistiveOnlySurfaceCount: number;
+  codeTraversalMode: PluginCodeTraversalMode;
+  confidence: Record<DiscoveryConfidence, number>;
   lastError?: string;
+  lastTraversalError?: string;
+};
+
+export type LocalRuntimeProfile = {
+  commandPath: string;
+  workspaceRoot?: string;
+  available: boolean;
+  version?: string;
+  versionTag?: string;
+  configPath?: string;
+  validatorSupportsJson: boolean;
+  lastError?: string;
+};
+
+export type ResolvedSchemaInfo = {
+  requestedVersion: string;
+  resolvedVersion?: string;
+  source: "bundled-versioned" | "live-artifacts";
+  versionMatched: boolean;
 };
 
 export type ResolvedSchemaStatus = {
   artifacts: SchemaStatus;
   pluginDiscovery: PluginDiscoveryStatus;
+  runtime: LocalRuntimeProfile;
+  resolvedSchema: ResolvedSchemaInfo;
 };
 
 export type DiagnosticFingerprint = string;
@@ -110,7 +168,8 @@ export type PluginValidationIssueCode =
   | "plugin-deny-missing"
   | "plugin-slot-memory-missing"
   | "plugin-slot-context-engine-missing"
-  | "plugin-disabled-config";
+  | "plugin-disabled-config"
+  | "channel-entry-missing";
 
 export type PluginValidationIssue = {
   code: PluginValidationIssueCode;

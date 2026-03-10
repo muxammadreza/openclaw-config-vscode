@@ -48,7 +48,27 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
         `pluginDiscovery.source: ${status.pluginDiscovery.source}`,
         `pluginDiscovery.commandPath: ${status.pluginDiscovery.commandPath}`,
         `pluginDiscovery.pluginCount: ${status.pluginDiscovery.pluginCount}`,
+        `pluginDiscovery.channelCount: ${status.pluginDiscovery.channelCount}`,
+        `pluginDiscovery.providerCount: ${status.pluginDiscovery.providerCount}`,
+        `pluginDiscovery.schemaBackedSurfaceCount: ${status.pluginDiscovery.schemaBackedSurfaceCount}`,
+        `pluginDiscovery.assistiveOnlySurfaceCount: ${status.pluginDiscovery.assistiveOnlySurfaceCount}`,
+        `pluginDiscovery.codeTraversalMode: ${status.pluginDiscovery.codeTraversalMode}`,
+        `pluginDiscovery.confidence.explicit: ${status.pluginDiscovery.confidence.explicit}`,
+        `pluginDiscovery.confidence.derived: ${status.pluginDiscovery.confidence.derived}`,
+        `pluginDiscovery.confidence.inferred: ${status.pluginDiscovery.confidence.inferred}`,
         `pluginDiscovery.lastError: ${status.pluginDiscovery.lastError ?? "none"}`,
+        `pluginDiscovery.lastTraversalError: ${status.pluginDiscovery.lastTraversalError ?? "none"}`,
+        `runtime.available: ${status.runtime.available}`,
+        `runtime.commandPath: ${status.runtime.commandPath}`,
+        `runtime.version: ${status.runtime.version ?? "n/a"}`,
+        `runtime.versionTag: ${status.runtime.versionTag ?? "n/a"}`,
+        `runtime.configPath: ${status.runtime.configPath ?? "n/a"}`,
+        `runtime.validatorSupportsJson: ${status.runtime.validatorSupportsJson}`,
+        `runtime.lastError: ${status.runtime.lastError ?? "none"}`,
+        `resolvedSchema.requestedVersion: ${status.resolvedSchema.requestedVersion}`,
+        `resolvedSchema.resolvedVersion: ${status.resolvedSchema.resolvedVersion ?? "n/a"}`,
+        `resolvedSchema.source: ${status.resolvedSchema.source}`,
+        `resolvedSchema.versionMatched: ${status.resolvedSchema.versionMatched}`,
       ];
       if (status.artifacts.policy.artifacts.length > 0) {
         lines.push(`policy.artifacts.count: ${status.artifacts.policy.artifacts.length}`);
@@ -67,7 +87,7 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
       options.output.show(true);
 
       void vscode.window.showInformationMessage(
-        `OpenClaw schema source=${status.artifacts.source}, commit=${status.artifacts.openclawCommit ?? "n/a"}`,
+        `OpenClaw runtime=${status.runtime.version ?? "n/a"}, schema=${status.resolvedSchema.resolvedVersion ?? "live"}`,
       );
     }),
     vscode.commands.registerCommand("openclawConfig.newConfig", async () => {

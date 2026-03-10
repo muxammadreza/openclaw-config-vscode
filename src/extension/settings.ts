@@ -4,6 +4,7 @@ import {
   DEFAULT_ALLOWED_REPOSITORIES,
   DEFAULT_MANIFEST_URL,
 } from "../schema/constants";
+import type { PluginCodeTraversalMode } from "../schema/types";
 import { clampTtlHours } from "../utils";
 
 export type ExtensionSettings = {
@@ -17,6 +18,7 @@ export type ExtensionSettings = {
   pluginMetadataUrl: string;
   pluginMetadataLocalPath: string;
   pluginCommandPath: string;
+  pluginCodeTraversal: PluginCodeTraversalMode;
   codeActionsEnabled: boolean;
   schemaVersion: string;
   autoUpdate: boolean;
@@ -48,9 +50,12 @@ export function readSettings(): ExtensionSettings {
       .trim();
   const pluginCommandPath =
     (config.get<string>("plugins.commandPath", "openclaw") || "openclaw").trim() || "openclaw";
+  const pluginCodeTraversal = normalizeTraversalMode(
+    config.get<string>("plugins.codeTraversal", "installed-sources"),
+  );
 
   const codeActionsEnabled = config.get<boolean>("codeActions.enabled", true);
-  
+
   const schemaVersion = config.get<string>("sync.schemaVersion", "latest").trim();
   const autoUpdate = config.get<boolean>("updates.autoUpdate", true);
 
@@ -65,6 +70,7 @@ export function readSettings(): ExtensionSettings {
     pluginMetadataUrl,
     pluginMetadataLocalPath,
     pluginCommandPath,
+    pluginCodeTraversal,
     codeActionsEnabled,
     schemaVersion,
     autoUpdate,
@@ -80,4 +86,14 @@ function normalizeStringArray(value: string[] | undefined, fallback: string[]): 
     .filter(Boolean)
     .map((entry) => entry.toLowerCase());
   return normalized.length > 0 ? normalized : [...fallback];
+}
+
+function normalizeTraversalMode(value: string | undefined): PluginCodeTraversalMode {
+  switch ((value || "").trim()) {
+    case "off":
+    case "max-coverage":
+      return value as PluginCodeTraversalMode;
+    default:
+      return "installed-sources";
+  }
 }

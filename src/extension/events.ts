@@ -1,26 +1,26 @@
 import * as vscode from "vscode";
+import { OPENCLAW_DOCUMENT_SELECTOR } from "../extension/documentSelector";
+import { OpenClawJsonLanguageService } from "../language/jsonLanguageService";
 import { buildFieldExplainMarkdown, findPathAtOffset } from "../schema/explain";
 import type { DynamicSubfieldCatalog } from "../schema/types";
+import type { LocalRuntimeProfileService } from "../runtime/localRuntimeProfile";
 import { isOpenClawConfigDocument } from "../utils";
 import type { OpenClawIntegratorDiagnostics } from "../validation/integratorDiagnostics";
 import type { OpenClawPluginDiagnostics } from "../validation/pluginDiagnostics";
-import type { OpenClawZodShadowDiagnostics } from "../validation/zodShadow";
+import type { OpenClawRuntimeValidatorDiagnostics } from "../validation/runtimeValidator";
 import { cancelPendingValidation, clearAllPendingValidations } from "./pendingValidation";
 import type { ExtensionSettings } from "./settings";
-
-const OPENCLAW_DOCUMENT_SELECTOR: vscode.DocumentSelector = [
-  { language: "jsonc", pattern: "**/openclaw.json" },
-  { language: "json", pattern: "**/openclaw.json" },
-];
 
 type EventRegistrationOptions = {
   context: vscode.ExtensionContext;
   artifacts: {
     getUiHintsText: () => Promise<string>;
   };
-  zodShadow: Pick<OpenClawZodShadowDiagnostics, "clear" | "revalidateAll">;
+  jsonLanguageService: Pick<OpenClawJsonLanguageService, "clear" | "revalidateAll">;
+  runtimeValidator: Pick<OpenClawRuntimeValidatorDiagnostics, "clear" | "revalidateAll">;
   integratorDiagnostics: Pick<OpenClawIntegratorDiagnostics, "clear" | "revalidateAll">;
   pluginDiagnostics: Pick<OpenClawPluginDiagnostics, "clear" | "revalidateAll">;
+  runtimeProfiles: Pick<LocalRuntimeProfileService, "invalidate" | "getProfile">;
   configureRemote: (options: {
     manifestUrl?: string;
     schemaVersion?: string;
@@ -33,7 +33,12 @@ type EventRegistrationOptions = {
   invalidateResolvedArtifacts: () => void;
   ensureInitialized: (reason: string) => Promise<void>;
   validateDocument: (document: vscode.TextDocument) => Promise<void>;
-  getDiscoveredPlugins: () => Promise<readonly import("../schema/types").DiscoveredPlugin[]>;
+  getDiscoveryResult: () => Promise<
+    Pick<
+      import("../schema/pluginDiscovery").PluginDiscoveryResult,
+      "plugins" | "channelSurfaces" | "providerSurfaces"
+    >
+  >;
   readSettings: () => ExtensionSettings;
   isInitialized: () => boolean;
   getCatalog: () => Promise<DynamicSubfieldCatalog | null>;
@@ -99,7 +104,8 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
     }),
     vscode.workspace.onDidCloseTextDocument((document) => {
       cancelPendingValidation(pendingValidations, document.uri.toString());
-      options.zodShadow.clear(document);
+      options.jsonLanguageService.clear(document);
+      options.runtimeValidator.clear(document);
       options.integratorDiagnostics.clear(document);
       options.pluginDiagnostics.clear(document);
     }),
@@ -109,23 +115,31 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
         event.affectsConfiguration("openclawConfig.sync.manifestUrl") ||
         event.affectsConfiguration("openclawConfig.sync.allowedHosts") ||
         event.affectsConfiguration("openclawConfig.sync.allowedRepositories") ||
-        event.affectsConfiguration("openclawConfig.plugins.commandPath");
+        event.affectsConfiguration("openclawConfig.plugins.commandPath") ||
+        event.affectsConfiguration("openclawConfig.plugins.codeTraversal");
 
       const policyOrCatalogChanged =
         settingsChanged ||
         event.affectsConfiguration("openclawConfig.plugins.metadataUrl") ||
         event.affectsConfiguration("openclawConfig.plugins.metadataLocalPath") ||
-        event.affectsConfiguration("openclawConfig.plugins.commandPath");
+        event.affectsConfiguration("openclawConfig.plugins.commandPath") ||
+        event.affectsConfiguration("openclawConfig.plugins.codeTraversal");
 
       const settings = options.readSettings();
-      options.configureRemote({
-        manifestUrl: settings.manifestUrl,
-        schemaVersion: settings.schemaVersion,
-        securityPolicy: {
-          requireHttps: true,
-          allowedHosts: settings.allowedHosts,
-          allowedRepositories: settings.allowedRepositories,
-        },
+      options.runtimeProfiles.invalidate();
+      void options.runtimeProfiles.getProfile({
+        commandPath: settings.pluginCommandPath,
+        workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      }).then((runtime) => {
+        options.configureRemote({
+          manifestUrl: settings.manifestUrl,
+          schemaVersion: settings.schemaVersion !== "latest" ? settings.schemaVersion : runtime.versionTag,
+          securityPolicy: {
+            requireHttps: true,
+            allowedHosts: settings.allowedHosts,
+            allowedRepositories: settings.allowedRepositories,
+          },
+        });
       });
 
       if (policyOrCatalogChanged) {
@@ -134,16 +148,22 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
       }
 
       const validationSettingsChanged =
-        event.affectsConfiguration("openclawConfig.zodShadow.enabled") ||
         event.affectsConfiguration("openclawConfig.integrator.strictSecrets");
 
       if (validationSettingsChanged && options.isInitialized()) {
-        void options.getDiscoveredPlugins().then((plugins) =>
+        void Promise.all([
+          options.runtimeProfiles.getProfile({
+            commandPath: settings.pluginCommandPath,
+            workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+          }),
+          options.getDiscoveryResult(),
+        ]).then(([runtime, discovery]) =>
           Promise.all([
-            options.zodShadow.revalidateAll(settings.zodShadowEnabled),
+            options.jsonLanguageService.revalidateAll(),
+            options.runtimeValidator.revalidateAll(runtime),
             options.integratorDiagnostics.revalidateAll({ strictSecrets: settings.strictSecrets }),
             options.pluginDiagnostics.revalidateAll({
-              plugins,
+              discovery,
             }),
           ]),
         );

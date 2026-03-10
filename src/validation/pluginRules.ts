@@ -1,31 +1,34 @@
+import type { PluginDiscoveryResult } from "../schema/pluginDiscovery";
 import type { DiscoveredPlugin, PluginValidationIssue } from "../schema/types";
 
 type PluginSlotName = "memory" | "contextEngine";
 
 const CONTEXT_ENGINE_BUILTINS = new Set(["legacy"]);
 const MEMORY_BUILTINS = new Set(["none"]);
+const CHANNEL_BUILTINS = new Set(["defaults"]);
 
 export function evaluatePluginValidationIssues(
   config: unknown,
-  plugins: readonly DiscoveredPlugin[],
+  discovery: Pick<PluginDiscoveryResult, "plugins" | "channelSurfaces" | "providerSurfaces">,
 ): PluginValidationIssue[] {
   if (!config || typeof config !== "object") {
     return [];
   }
 
   const issues: PluginValidationIssue[] = [];
-  const pluginMap = new Map(plugins.map((plugin) => [plugin.id, plugin]));
+  const pluginMap = new Map(discovery.plugins.map((plugin) => [plugin.id, plugin]));
+  const channelIds = new Set(discovery.channelSurfaces.map((surface) => surface.id));
   const typedConfig = config as Record<string, unknown>;
   const pluginsConfig = asRecord(typedConfig.plugins);
-  if (!pluginsConfig) {
-    return issues;
+  if (pluginsConfig) {
+    issues.push(...checkPluginEntries(asRecord(pluginsConfig.entries), pluginMap));
+    issues.push(...checkPluginIdList("allow", asStringArray(pluginsConfig.allow), pluginMap));
+    issues.push(...checkPluginIdList("deny", asStringArray(pluginsConfig.deny), pluginMap));
+    issues.push(...checkPluginSlot("memory", asRecord(pluginsConfig.slots), pluginMap));
+    issues.push(...checkPluginSlot("contextEngine", asRecord(pluginsConfig.slots), pluginMap));
   }
 
-  issues.push(...checkPluginEntries(asRecord(pluginsConfig.entries), pluginMap));
-  issues.push(...checkPluginIdList("allow", asStringArray(pluginsConfig.allow), pluginMap));
-  issues.push(...checkPluginIdList("deny", asStringArray(pluginsConfig.deny), pluginMap));
-  issues.push(...checkPluginSlot("memory", asRecord(pluginsConfig.slots), pluginMap));
-  issues.push(...checkPluginSlot("contextEngine", asRecord(pluginsConfig.slots), pluginMap));
+  issues.push(...checkChannels(asRecord(typedConfig.channels), channelIds));
   return issues;
 }
 
@@ -122,6 +125,29 @@ function checkPluginSlot(
       severity: "error",
     },
   ];
+}
+
+function checkChannels(
+  channels: Record<string, unknown> | null,
+  discoveredChannelIds: Set<string>,
+): PluginValidationIssue[] {
+  if (!channels || discoveredChannelIds.size === 0) {
+    return [];
+  }
+
+  const issues: PluginValidationIssue[] = [];
+  for (const channelId of Object.keys(channels)) {
+    if (CHANNEL_BUILTINS.has(channelId) || discoveredChannelIds.has(channelId)) {
+      continue;
+    }
+    issues.push({
+      code: "channel-entry-missing",
+      path: `channels.${channelId}`,
+      message: `Configured channel "${channelId}" is not discoverable from the locally installed plugin set.`,
+      severity: "warning",
+    });
+  }
+  return issues;
 }
 
 function getOptionalString(value: unknown): string | null {

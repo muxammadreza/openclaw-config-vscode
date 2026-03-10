@@ -222,4 +222,44 @@ describe("dynamicSubfields catalog", () => {
     assert.equal(enabled.matchedByWildcard, true);
     assert.equal(enabled.matchedPattern, "channels.whatsapp.accounts.*");
   });
+
+  it("builds completion entries from assistive discovery hints without schema fields", () => {
+    const catalog = buildDynamicSubfieldCatalog(
+      JSON.stringify({
+        type: "object",
+        properties: {
+          models: {
+            type: "object",
+            properties: {
+              providers: {
+                type: "object",
+                additionalProperties: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    baseUrl: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      JSON.stringify({
+        "models.providers.copilot-proxy": {
+          __openclawAssistiveField: true,
+        },
+        "models.providers.copilot-proxy.authHeader": {
+          __openclawAssistiveField: true,
+        },
+      }),
+      [],
+    );
+
+    const providerEntries = resolveDynamicSubfields(catalog, "models.providers");
+    const configEntries = resolveDynamicSubfields(catalog, "models.providers.copilot-proxy");
+
+    assert.equal(providerEntries.some((entry) => entry.key === "copilot-proxy"), true);
+    assert.equal(configEntries.some((entry) => entry.key === "authHeader"), true);
+  });
 });

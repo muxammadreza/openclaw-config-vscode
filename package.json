@@ -25,14 +25,7 @@
   "activationEvents": [
     "workspaceContains:**/openclaw.json",
     "onLanguage:json",
-    "onLanguage:jsonc",
-    "onCommand:openclawConfig.newConfig",
-    "onCommand:openclawConfig.refreshSchemaNow",
-    "onCommand:openclawConfig.insertSectionSnippet",
-    "onCommand:openclawConfig.explainSelection",
-    "onCommand:openclawConfig.normalizeConfig",
-    "onCommand:openclawConfig.showSchemaStatus",
-    "onCommand:openclawConfig.checkForUpdates"
+    "onLanguage:jsonc"
   ],
   "main": "./dist/extension.js",
   "repository": {
@@ -152,6 +145,16 @@
           "default": "openclaw",
           "description": "Command or absolute path used to query locally installed OpenClaw plugins for editor schema overlays."
         },
+        "openclawConfig.plugins.codeTraversal": {
+          "type": "string",
+          "default": "installed-sources",
+          "enum": [
+            "off",
+            "installed-sources",
+            "max-coverage"
+          ],
+          "description": "How aggressively the extension should inspect installed plugin code when manifests and CLI metadata do not expose enough schema information."
+        },
         "openclawConfig.sync.schemaVersion": {
           "type": "string",
           "default": "latest",
@@ -164,12 +167,6 @@
         }
       }
     },
-    "jsonValidation": [
-      {
-        "fileMatch": "**/openclaw.json",
-        "url": "openclaw-schema://live/openclaw.schema.json"
-      }
-    ],
     "snippets": [
       {
         "language": "jsonc",
@@ -211,7 +208,9 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "jsonc-parser": "^3.3.1"
+    "jsonc-parser": "^3.3.1",
+    "vscode-json-languageservice": "^5.6.3",
+    "vscode-languageserver-textdocument": "^1.0.12"
   },
   "pnpm": {
     "overrides": {

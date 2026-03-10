@@ -25,6 +25,7 @@ type JsonSchemaNode = {
 };
 
 type UiHintRecord = Record<string, { label?: string; help?: string }>;
+const DISCOVERY_HINT_MARKER = "__openclawAssistiveField";
 
 export function buildDynamicSubfieldCatalog(
   schemaText: string,
@@ -38,6 +39,7 @@ export function buildDynamicSubfieldCatalog(
   const rootSections = new Set<string>();
 
   walkSchema(schema, [], hints, fieldsByPattern, rootSections);
+  mergeAssistiveHintEntries(hints, fieldsByPattern);
   mergePluginEntries(pluginEntries, hints, fieldsByPattern);
 
   return {
@@ -185,6 +187,42 @@ function mergePluginEntries(
   }
 }
 
+function mergeAssistiveHintEntries(
+  hints: UiHintRecord,
+  fieldsByPattern: Map<string, DynamicSubfieldEntry[]>,
+): void {
+  const hintPaths = new Set(
+    Object.entries(hints)
+      .filter(([, hint]) => isAssistiveHint(hint))
+      .map(([path]) => normalizePath(path))
+      .filter(Boolean),
+  );
+
+  for (const fullPath of hintPaths) {
+    const segments = fullPath.split(".");
+    if (segments.length === 0) {
+      continue;
+    }
+
+    const key = segments.at(-1);
+    const pattern = segments.slice(0, -1).join(".");
+    if (!key || key === "*") {
+      continue;
+    }
+
+    const hint = resolveHint(hints, fullPath);
+    addField(fieldsByPattern, pattern, {
+      key,
+      path: fullPath,
+      description: hint?.help ?? hint?.label,
+      source: "plugin",
+      snippet: [...hintPaths].some((candidate) => candidate.startsWith(`${fullPath}.`))
+        ? "{\n  $1\n}"
+        : undefined,
+    });
+  }
+}
+
 function addField(
   fieldsByPattern: Map<string, DynamicSubfieldEntry[]>,
   pattern: string,
@@ -278,6 +316,15 @@ function normalizePath(value: string): string {
 
 function isObjectSchema(value: unknown): value is JsonSchemaNode {
   return Boolean(value && typeof value === "object");
+}
+
+function isAssistiveHint(value: unknown): boolean {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Reflect.get(value as object, DISCOVERY_HINT_MARKER) === true,
+  );
 }
 
 function compareResolution(

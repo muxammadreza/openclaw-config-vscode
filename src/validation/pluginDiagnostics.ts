@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import { parse, type ParseError } from "jsonc-parser";
-import type { DiscoveredPlugin } from "../schema/types";
+import type { PluginDiscoveryResult } from "../schema/pluginDiscovery";
 import { isOpenClawConfigDocument } from "../utils";
 import { findDiagnosticRange } from "./pathRanges";
 import { evaluatePluginValidationIssues } from "./pluginRules";
 
 type PluginDiagnosticsOptions = {
-  plugins: readonly DiscoveredPlugin[];
+  discovery: Pick<PluginDiscoveryResult, "plugins" | "channelSurfaces" | "providerSurfaces">;
 };
 
 export class OpenClawPluginDiagnostics {
@@ -41,7 +41,7 @@ export class OpenClawPluginDiagnostics {
       return;
     }
 
-    const issues = evaluatePluginValidationIssues(parsed, options.plugins);
+    const issues = evaluatePluginValidationIssues(parsed, options.discovery);
     const diagnostics = issues.map((issue) => {
       const diagnostic = new vscode.Diagnostic(
         findDiagnosticRange(document, issue.path),
