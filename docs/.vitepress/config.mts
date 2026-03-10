@@ -43,13 +43,11 @@ export default defineConfig({
         ],
       },
     ],
-    socialLinks: [{ icon: "github", link: "https://github.com/jorekai/openclaw-config-vscode" }],
     search: {
       provider: "local",
     },
     footer: {
       message: "MIT Licensed",
-      copyright: "Copyright © jorekai",
     },
   },
 });

@@ -2,45 +2,97 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build_and_release:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@c5ba7f7862a0f64c1b1a05fbac13e0b8e86ba08c
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
 
+      - name: Resolve release version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            EXISTS=true
+          else
+            EXISTS=false
+          fi
+          echo "exists=${EXISTS}" >> "$GITHUB_OUTPUT"
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${EXISTS}" = "false" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install dependencies
+        if: steps.version.outputs.publish == 'true'
         run: pnpm install --frozen-lockfile
 
-      - name: Compile
-        run: pnpm compile
+      - name: Verify release build
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          pnpm compile
+          pnpm test:unit
+          xvfb-run -a pnpm test:integration
+          pnpm package:verify
 
       - name: Package VSIX
+        if: steps.version.outputs.publish == 'true'
         run: pnpm package:vsix
 
-      - name: Get VSIX file name
-        id: get_vsix
+      - name: Resolve VSIX path
+        if: steps.version.outputs.publish == 'true'
+        id: vsix
         run: |
-          VSIX_FILE=$(ls dist/*.vsix)
-          echo "VSIX_PATH=$VSIX_FILE" >> $GITHUB_ENV
+          VSIX_PATH="dist/openclaw-config-vscode-${{ steps.version.outputs.version }}.vsix"
+          test -f "${VSIX_PATH}"
+          echo "path=${VSIX_PATH}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ env.VSIX_PATH }}
-          generate_release_notes: true
+        if: steps.version.outputs.publish == 'true' && steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" "${{ steps.vsix.outputs.path }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --generate-notes
+
+      - name: Upload VSIX to existing release
+        if: steps.version.outputs.publish == 'true' && steps.version.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.version.outputs.tag }}" "${{ steps.vsix.outputs.path }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber

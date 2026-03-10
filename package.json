@@ -38,10 +38,6 @@
     "type": "git",
     "url": "https://github.com/muxammadreza/openclaw-config-vscode.git"
   },
-  "homepage": "https://github.com/muxammadreza/openclaw-config-vscode#readme",
-  "bugs": {
-    "url": "https://github.com/muxammadreza/openclaw-config-vscode/issues"
-  },
   "files": [
     "dist/extension.js",
     "dist/extension.js.map",
