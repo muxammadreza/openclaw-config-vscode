@@ -59,6 +59,33 @@ export type SchemaStatus = {
   };
 };
 
+export type PluginDiscoverySource = "cli" | "manifest-fallback" | "unavailable";
+
+export type DiscoveredPlugin = {
+  id: string;
+  name?: string;
+  description?: string;
+  kind?: string;
+  enabled?: boolean;
+  status?: string;
+  source?: string;
+  origin?: string;
+  configJsonSchema?: Record<string, unknown>;
+  configUiHints?: Record<string, Record<string, unknown>>;
+};
+
+export type PluginDiscoveryStatus = {
+  source: PluginDiscoverySource;
+  commandPath: string;
+  pluginCount: number;
+  lastError?: string;
+};
+
+export type ResolvedSchemaStatus = {
+  artifacts: SchemaStatus;
+  pluginDiscovery: PluginDiscoveryStatus;
+};
+
 export type DiagnosticFingerprint = string;
 
 export type IntegratorIssueSeverity = "warning" | "error";
@@ -73,6 +100,23 @@ export type IntegratorIssue = {
   path: string;
   message: string;
   severity: IntegratorIssueSeverity;
+};
+
+export type PluginValidationIssueSeverity = "warning" | "error";
+
+export type PluginValidationIssueCode =
+  | "plugin-entry-missing"
+  | "plugin-allow-missing"
+  | "plugin-deny-missing"
+  | "plugin-slot-memory-missing"
+  | "plugin-slot-context-engine-missing"
+  | "plugin-disabled-config";
+
+export type PluginValidationIssue = {
+  code: PluginValidationIssueCode;
+  path: string;
+  message: string;
+  severity: PluginValidationIssueSeverity;
 };
 
 export type CompletionPrimitive = string | number | boolean | null;

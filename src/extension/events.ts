@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
-import type { SchemaArtifactManager } from "../schema/artifactManager";
 import { buildFieldExplainMarkdown, findPathAtOffset } from "../schema/explain";
 import type { DynamicSubfieldCatalog } from "../schema/types";
 import { isOpenClawConfigDocument } from "../utils";
 import type { OpenClawIntegratorDiagnostics } from "../validation/integratorDiagnostics";
+import type { OpenClawPluginDiagnostics } from "../validation/pluginDiagnostics";
 import type { OpenClawZodShadowDiagnostics } from "../validation/zodShadow";
 import { cancelPendingValidation, clearAllPendingValidations } from "./pendingValidation";
 import type { ExtensionSettings } from "./settings";
@@ -15,11 +15,25 @@ const OPENCLAW_DOCUMENT_SELECTOR: vscode.DocumentSelector = [
 
 type EventRegistrationOptions = {
   context: vscode.ExtensionContext;
-  artifacts: Pick<SchemaArtifactManager, "configureRemote" | "getUiHintsText">;
+  artifacts: {
+    getUiHintsText: () => Promise<string>;
+  };
   zodShadow: Pick<OpenClawZodShadowDiagnostics, "clear" | "revalidateAll">;
   integratorDiagnostics: Pick<OpenClawIntegratorDiagnostics, "clear" | "revalidateAll">;
+  pluginDiagnostics: Pick<OpenClawPluginDiagnostics, "clear" | "revalidateAll">;
+  configureRemote: (options: {
+    manifestUrl?: string;
+    schemaVersion?: string;
+    securityPolicy?: {
+      requireHttps?: boolean;
+      allowedHosts?: string[];
+      allowedRepositories?: string[];
+    };
+  }) => void;
+  invalidateResolvedArtifacts: () => void;
   ensureInitialized: (reason: string) => Promise<void>;
   validateDocument: (document: vscode.TextDocument) => Promise<void>;
+  getDiscoveredPlugins: () => Promise<readonly import("../schema/types").DiscoveredPlugin[]>;
   readSettings: () => ExtensionSettings;
   isInitialized: () => boolean;
   getCatalog: () => Promise<DynamicSubfieldCatalog | null>;
@@ -87,22 +101,26 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
       cancelPendingValidation(pendingValidations, document.uri.toString());
       options.zodShadow.clear(document);
       options.integratorDiagnostics.clear(document);
+      options.pluginDiagnostics.clear(document);
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       const settingsChanged =
         event.affectsConfiguration("openclawConfig.sync.ttlHours") ||
         event.affectsConfiguration("openclawConfig.sync.manifestUrl") ||
         event.affectsConfiguration("openclawConfig.sync.allowedHosts") ||
-        event.affectsConfiguration("openclawConfig.sync.allowedRepositories");
+        event.affectsConfiguration("openclawConfig.sync.allowedRepositories") ||
+        event.affectsConfiguration("openclawConfig.plugins.commandPath");
 
       const policyOrCatalogChanged =
         settingsChanged ||
         event.affectsConfiguration("openclawConfig.plugins.metadataUrl") ||
-        event.affectsConfiguration("openclawConfig.plugins.metadataLocalPath");
+        event.affectsConfiguration("openclawConfig.plugins.metadataLocalPath") ||
+        event.affectsConfiguration("openclawConfig.plugins.commandPath");
 
       const settings = options.readSettings();
-      options.artifacts.configureRemote({
+      options.configureRemote({
         manifestUrl: settings.manifestUrl,
+        schemaVersion: settings.schemaVersion,
         securityPolicy: {
           requireHttps: true,
           allowedHosts: settings.allowedHosts,
@@ -111,6 +129,7 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
       });
 
       if (policyOrCatalogChanged) {
+        options.invalidateResolvedArtifacts();
         options.invalidateCatalog();
       }
 
@@ -119,10 +138,15 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
         event.affectsConfiguration("openclawConfig.integrator.strictSecrets");
 
       if (validationSettingsChanged && options.isInitialized()) {
-        void Promise.all([
-          options.zodShadow.revalidateAll(settings.zodShadowEnabled),
-          options.integratorDiagnostics.revalidateAll({ strictSecrets: settings.strictSecrets }),
-        ]);
+        void options.getDiscoveredPlugins().then((plugins) =>
+          Promise.all([
+            options.zodShadow.revalidateAll(settings.zodShadowEnabled),
+            options.integratorDiagnostics.revalidateAll({ strictSecrets: settings.strictSecrets }),
+            options.pluginDiagnostics.revalidateAll({
+              plugins,
+            }),
+          ]),
+        );
       }
 
       if (settingsChanged && options.isInitialized()) {

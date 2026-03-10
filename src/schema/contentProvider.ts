@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import { OPENCLAW_SCHEMA_URI } from "./constants";
-import { SchemaArtifactManager } from "./artifactManager";
+
+type SchemaTextProvider = {
+  getSchemaText: () => Promise<string>;
+};
 
 const KNOWN_SCHEMA_BASENAME = "openclaw.schema.json";
 
@@ -8,7 +11,7 @@ export class OpenClawSchemaContentProvider implements vscode.TextDocumentContent
   private readonly onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this.onDidChangeEmitter.event;
 
-  constructor(private readonly artifactManager: SchemaArtifactManager) {}
+  constructor(private readonly artifactManager: SchemaTextProvider) {}
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     if (!isOpenClawSchemaUri(uri)) {

@@ -16,6 +16,7 @@ export type ExtensionSettings = {
   allowedRepositories: string[];
   pluginMetadataUrl: string;
   pluginMetadataLocalPath: string;
+  pluginCommandPath: string;
   codeActionsEnabled: boolean;
   schemaVersion: string;
   autoUpdate: boolean;
@@ -45,6 +46,8 @@ export function readSettings(): ExtensionSettings {
     (config.get<string>("plugins.metadataLocalPath", ".openclaw/plugin-hints.json") ||
       ".openclaw/plugin-hints.json")
       .trim();
+  const pluginCommandPath =
+    (config.get<string>("plugins.commandPath", "openclaw") || "openclaw").trim() || "openclaw";
 
   const codeActionsEnabled = config.get<boolean>("codeActions.enabled", true);
   
@@ -61,6 +64,7 @@ export function readSettings(): ExtensionSettings {
     allowedRepositories,
     pluginMetadataUrl,
     pluginMetadataLocalPath,
+    pluginCommandPath,
     codeActionsEnabled,
     schemaVersion,
     autoUpdate,

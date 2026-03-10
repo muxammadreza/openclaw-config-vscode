@@ -1,4 +1,3 @@
-import type { SchemaArtifactManager } from "../schema/artifactManager";
 import { buildDynamicSubfieldCatalog, resolveDynamicSubfields } from "../schema/dynamicSubfields";
 import type { PluginHintEntry } from "../schema/types";
 import type { SectionSnippet } from "./templates";
@@ -6,7 +5,10 @@ import type { SectionSnippet } from "./templates";
 type UiHintRecord = Record<string, { label?: string; help?: string }>;
 
 export async function buildDynamicSectionSnippets(
-  artifacts: SchemaArtifactManager,
+  artifacts: {
+    getSchemaText: () => Promise<string>;
+    getUiHintsText: () => Promise<string>;
+  },
   fallbackSnippets: readonly SectionSnippet[],
   pluginEntries: readonly PluginHintEntry[] = [],
 ): Promise<SectionSnippet[]> {

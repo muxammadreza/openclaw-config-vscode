@@ -147,6 +147,11 @@
           "default": ".openclaw/plugin-hints.json",
           "description": "Workspace-relative path to local plugin metadata hints."
         },
+        "openclawConfig.plugins.commandPath": {
+          "type": "string",
+          "default": "openclaw",
+          "description": "Command or absolute path used to query locally installed OpenClaw plugins for editor schema overlays."
+        },
         "openclawConfig.sync.schemaVersion": {
           "type": "string",
           "default": "latest",

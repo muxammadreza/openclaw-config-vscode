@@ -7,10 +7,12 @@ import { readSettings } from "./extension/settings";
 import { SchemaArtifactManager } from "./schema/artifactManager";
 import { OPENCLAW_SCHEMA_URI } from "./schema/constants";
 import { OpenClawSchemaContentProvider } from "./schema/contentProvider";
+import { ResolvedSchemaService } from "./schema/resolvedArtifacts";
 import { registerOpenClawSubfieldCompletion } from "./templating/subfieldCompletion";
 import { isOpenClawConfigDocument } from "./utils";
 import { registerOpenClawCodeActions } from "./validation/codeActions";
 import { OpenClawIntegratorDiagnostics } from "./validation/integratorDiagnostics";
+import { OpenClawPluginDiagnostics } from "./validation/pluginDiagnostics";
 import { OpenClawZodShadowDiagnostics } from "./validation/zodShadow";
 import { registerAutoUpdater } from "./extension/updater";
 
@@ -21,9 +23,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(output);
 
   const artifacts = new SchemaArtifactManager({ context });
-  const schemaProvider = new OpenClawSchemaContentProvider(artifacts);
+  const resolvedArtifacts = new ResolvedSchemaService({
+    artifacts,
+    output,
+    readSettings,
+    getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+  });
+  const schemaProvider = new OpenClawSchemaContentProvider(resolvedArtifacts);
   const zodShadow = new OpenClawZodShadowDiagnostics(artifacts);
   const integratorDiagnostics = new OpenClawIntegratorDiagnostics();
+  const pluginDiagnostics = new OpenClawPluginDiagnostics();
 
   registerAutoUpdater(context, output);
 
@@ -31,6 +40,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     schemaProvider,
     zodShadow,
     integratorDiagnostics,
+    pluginDiagnostics,
     vscode.workspace.registerTextDocumentContentProvider("openclaw-schema", schemaProvider),
   );
 
@@ -57,6 +67,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       zodShadow.validateDocument(workingDocument, settings.zodShadowEnabled),
       integratorDiagnostics.validateDocument(workingDocument, {
         strictSecrets: settings.strictSecrets,
+      }),
+      pluginDiagnostics.validateDocument(workingDocument, {
+        plugins: await resolvedArtifacts.getDiscoveredPlugins(),
       }),
     ]);
   };
@@ -85,6 +98,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const initialSync = await artifacts.initialize(settings.ttlHours);
       output.appendLine(`[init:${reason}] ${initialSync.message}`);
       initialized = true;
+      resolvedArtifacts.invalidate();
       invalidateCatalog();
 
       await Promise.all(
@@ -113,6 +127,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     output.appendLine(`[sync] ${result.message}`);
 
     if (result.updated || force) {
+      resolvedArtifacts.invalidate();
       invalidateCatalog();
       schemaProvider.refresh();
       await Promise.all([
@@ -120,13 +135,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         integratorDiagnostics.revalidateAll({
           strictSecrets: settings.strictSecrets,
         }),
+        pluginDiagnostics.revalidateAll({
+          plugins: await resolvedArtifacts.getDiscoveredPlugins(),
+        }),
       ]);
       await refreshJsonSchema(output);
     }
   });
 
   const catalog = createCatalogController({
-    artifacts,
+    artifacts: resolvedArtifacts,
     output,
     readSettings,
     ensureInitialized,
@@ -140,11 +158,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   registerOpenClawEvents({
     context,
-    artifacts,
+    artifacts: resolvedArtifacts,
     zodShadow,
     integratorDiagnostics,
+    pluginDiagnostics,
+    configureRemote: (options) => artifacts.configureRemote(options),
+    invalidateResolvedArtifacts: () => resolvedArtifacts.invalidate(),
     ensureInitialized,
     validateDocument,
+    getDiscoveredPlugins: () => resolvedArtifacts.getDiscoveredPlugins(),
     readSettings,
     isInitialized: () => initialized,
     getCatalog: catalog.getCatalog,
@@ -154,7 +176,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   registerOpenClawCommands({
     context,
-    artifacts,
+    artifacts: resolvedArtifacts,
     output,
     ensureInitialized,
     syncAndRefresh,

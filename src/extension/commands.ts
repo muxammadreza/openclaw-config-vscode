@@ -2,9 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import * as vscode from "vscode";
 import { CONFIG_FILE_NAME } from "../schema/constants";
-import type { SchemaArtifactManager } from "../schema/artifactManager";
 import { buildFieldExplainMarkdown, findPathAtOffset } from "../schema/explain";
-import type { DynamicSubfieldCatalog, PluginHintEntry } from "../schema/types";
+import type { DynamicSubfieldCatalog, PluginHintEntry, ResolvedSchemaStatus } from "../schema/types";
 import { buildDynamicSectionSnippets } from "../templating/dynamicCatalog";
 import { normalizeOpenClawConfigText } from "../templating/normalize";
 import { SECTION_SNIPPETS, STARTER_TEMPLATE } from "../templating/templates";
@@ -13,7 +12,11 @@ import { applyQuickFix } from "../validation/codeActions";
 
 type CommandRegistrationOptions = {
   context: vscode.ExtensionContext;
-  artifacts: SchemaArtifactManager;
+  artifacts: {
+    getSchemaText: () => Promise<string>;
+    getUiHintsText: () => Promise<string>;
+    getStatus: () => Promise<ResolvedSchemaStatus>;
+  };
   output: vscode.OutputChannel;
   ensureInitialized: (reason: string) => Promise<void>;
   syncAndRefresh: (force: boolean) => Promise<void>;
@@ -33,19 +36,23 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
       const status = await options.artifacts.getStatus();
 
       const lines = [
-        `source: ${status.source}`,
-        `manifestUrl: ${status.manifestUrl}`,
-        `openclawCommit: ${status.openclawCommit ?? "n/a"}`,
-        `generatedAt: ${status.generatedAt ?? "n/a"}`,
-        `lastCheckedAt: ${status.lastCheckedAt ?? "n/a"}`,
-        `lastSuccessfulSyncAt: ${status.lastSuccessfulSyncAt ?? "n/a"}`,
-        `lastError: ${status.lastError ?? "none"}`,
-        `policy.manifest.allowed: ${status.policy.manifest.allowed}`,
-        `policy.manifest.reason: ${status.policy.manifest.reason}`,
+        `source: ${status.artifacts.source}`,
+        `manifestUrl: ${status.artifacts.manifestUrl}`,
+        `openclawCommit: ${status.artifacts.openclawCommit ?? "n/a"}`,
+        `generatedAt: ${status.artifacts.generatedAt ?? "n/a"}`,
+        `lastCheckedAt: ${status.artifacts.lastCheckedAt ?? "n/a"}`,
+        `lastSuccessfulSyncAt: ${status.artifacts.lastSuccessfulSyncAt ?? "n/a"}`,
+        `lastError: ${status.artifacts.lastError ?? "none"}`,
+        `policy.manifest.allowed: ${status.artifacts.policy.manifest.allowed}`,
+        `policy.manifest.reason: ${status.artifacts.policy.manifest.reason}`,
+        `pluginDiscovery.source: ${status.pluginDiscovery.source}`,
+        `pluginDiscovery.commandPath: ${status.pluginDiscovery.commandPath}`,
+        `pluginDiscovery.pluginCount: ${status.pluginDiscovery.pluginCount}`,
+        `pluginDiscovery.lastError: ${status.pluginDiscovery.lastError ?? "none"}`,
       ];
-      if (status.policy.artifacts.length > 0) {
-        lines.push(`policy.artifacts.count: ${status.policy.artifacts.length}`);
-        status.policy.artifacts.forEach((evaluation, index) => {
+      if (status.artifacts.policy.artifacts.length > 0) {
+        lines.push(`policy.artifacts.count: ${status.artifacts.policy.artifacts.length}`);
+        status.artifacts.policy.artifacts.forEach((evaluation, index) => {
           lines.push(`policy.artifacts[${index}].allowed: ${evaluation.allowed}`);
           lines.push(`policy.artifacts[${index}].reason: ${evaluation.reason}`);
           lines.push(`policy.artifacts[${index}].host: ${evaluation.host ?? "n/a"}`);
@@ -60,7 +67,7 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
       options.output.show(true);
 
       void vscode.window.showInformationMessage(
-        `OpenClaw schema source=${status.source}, commit=${status.openclawCommit ?? "n/a"}`,
+        `OpenClaw schema source=${status.artifacts.source}, commit=${status.artifacts.openclawCommit ?? "n/a"}`,
       );
     }),
     vscode.commands.registerCommand("openclawConfig.newConfig", async () => {
