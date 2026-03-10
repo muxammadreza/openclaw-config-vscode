@@ -2,7 +2,7 @@
   "name": "openclaw-config-vscode",
   "displayName": "OpenClaw Config",
   "description": "Lightweight VS Code support for openclaw.json with live schema updates and Zod shadow diagnostics.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "muxammadreza",
   "license": "MIT",
   "icon": "assets/icon.png",
