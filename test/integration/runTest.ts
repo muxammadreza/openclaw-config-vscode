@@ -14,7 +14,7 @@ async function main(): Promise<void> {
       extensionTestsPath,
       launchArgs: [workspacePath, "--disable-extensions"],
       extensionTestsEnv: {
-        OPENCLAW_MANIFEST_URL: "http://127.0.0.1:9/manifest.json",
+        OPENCLAW_MANIFEST_URL: `file://${path.resolve(extensionDevelopmentPath, "schemas/live/manifest.json")}`,
       },
     });
   } finally {
