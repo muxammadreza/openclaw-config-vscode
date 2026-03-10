@@ -12,9 +12,8 @@ describe("schema security policy", () => {
     const normalized = normalizePolicyInput({
       requireHttps: true,
       allowedHosts: [" Raw.GitHubUserContent.Com ", "raw.githubusercontent.com", ""],
-      allowedRepositories: [" Jorekai/OpenClaw-Config-Vscode ", "muxammadreza/openclaw-config-vscode"],
+      allowedRepositories: [" Muxammadreza/OpenClaw-Config-Vscode ", "muxammadreza/openclaw-config-vscode"],
     });
-
     assert.deepEqual(normalized.allowedHosts, ["raw.githubusercontent.com"]);
     assert.deepEqual(normalized.allowedRepositories, ["muxammadreza/openclaw-config-vscode"]);
   });
