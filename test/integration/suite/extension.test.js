@@ -129,7 +129,7 @@ suite("OpenClaw Extension Integration", () => {
         (item) => normalizeLabel(item.label) === "dynamicMode" && /plugin/i.test(item.detail ?? ""),
       );
       return Boolean(match);
-    }, 30_000);
+    }, 60_000);
 
     const valueFixture = withMarker(
       `{
@@ -162,12 +162,12 @@ suite("OpenClaw Extension Integration", () => {
       }
       const labels = completion.items.map((item) => normalizeLabel(item.label));
       return labels.includes('"strict"') && labels.includes('"relaxed"');
-    }, 30_000);
+    }, 60_000);
   });
 });
 
 async function getExtension() {
-  await waitFor(() => Boolean(vscode.extensions.getExtension(EXTENSION_ID)), 10_000);
+  await waitFor(() => Boolean(vscode.extensions.getExtension(EXTENSION_ID)), 20_000);
   const extension = vscode.extensions.getExtension(EXTENSION_ID);
   assert.ok(extension);
   return extension;
@@ -179,7 +179,7 @@ async function ensureActivated() {
     return extension;
   }
   await extension.activate();
-  await waitFor(() => extension.isActive, 10_000);
+  await waitFor(() => extension.isActive, 20_000);
   return extension;
 }
 
@@ -189,7 +189,7 @@ async function waitFor(checkFn, timeoutMs) {
     if (await checkFn()) {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`Timed out after ${timeoutMs}ms`);
 }

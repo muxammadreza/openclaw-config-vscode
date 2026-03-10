@@ -88,14 +88,16 @@ async function main(): Promise<void> {
     try {
       await run("git", ["clone", "--depth", "1", "--branch", ref, OPENCLAW_REPO, openclawDir]);
       const commit = (await run("git", ["rev-parse", "HEAD"], { cwd: openclawDir })).stdout.trim();
-    await run("pnpm", ["install", "--no-frozen-lockfile", "--ignore-scripts"], { cwd: openclawDir });
+      
+      // Use --no-frozen-lockfile to avoid checksum mismatches for different platforms/pnpm versions during upstream clone
+      await run("pnpm", ["install", "--no-frozen-lockfile", "--ignore-scripts"], { cwd: openclawDir });
 
-    const exportScriptPath = path.join(tempRoot, "export-config-schema.ts");
-    const validatorEntryPath = path.join(tempRoot, "openclaw-validator-entry.ts");
+      const exportScriptPath = path.join(tempRoot, "export-config-schema.ts");
+      const validatorEntryPath = path.join(tempRoot, "openclaw-validator-entry.ts");
 
-    await fs.writeFile(
-      exportScriptPath,
-      `import fs from "node:fs/promises";
+      await fs.writeFile(
+        exportScriptPath,
+        `import fs from "node:fs/promises";
 import path from "node:path";
 import { buildConfigSchema } from ${JSON.stringify(path.join(openclawDir, "src/config/schema.ts"))};
 
@@ -122,12 +124,12 @@ main().catch((error) => {
   process.exit(1);
 });
 `,
-      "utf8",
-    );
+        "utf8",
+      );
 
-    await fs.writeFile(
-      validatorEntryPath,
-      `import { validateConfigObjectRaw } from ${JSON.stringify(path.join(openclawDir, "src/config/validation.ts"))};
+      await fs.writeFile(
+        validatorEntryPath,
+        `import { validateConfigObjectRaw } from ${JSON.stringify(path.join(openclawDir, "src/config/validation.ts"))};
 
 export function validate(raw) {
   const result = validateConfigObjectRaw(raw);
@@ -140,65 +142,75 @@ export function validate(raw) {
   }));
 }
 `,
-      "utf8",
-    );
+        "utf8",
+      );
 
-    await run("node", ["--import", "tsx", exportScriptPath, refOutputDir], { cwd: projectRoot });
+      await run("node", ["--import", "tsx", exportScriptPath, refOutputDir], { cwd: projectRoot });
 
-    await build({
-      absWorkingDir: openclawDir,
-      entryPoints: [validatorEntryPath],
-      outfile: path.join(refOutputDir, "openclaw.validator.mjs"),
-      bundle: true,
-      format: "esm",
-      platform: "node",
-      target: "node20",
-      minify: true,
-      sourcemap: false,
-      legalComments: "none",
-      treeShaking: true,
-      banner: {
-        js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",
-      },
-    });
-
-    const schema = await fs.readFile(path.join(refOutputDir, "openclaw.schema.json"), "utf8");
-    const uiHints = await fs.readFile(path.join(refOutputDir, "openclaw.ui-hints.json"), "utf8");
-    const validator = await fs.readFile(path.join(refOutputDir, "openclaw.validator.mjs"), "utf8");
-
-    const baseUrl = `https://raw.githubusercontent.com/${ARTIFACT_REPOSITORY}/${ARTIFACT_REF}/schemas/${ref}`;
-    const manifest: SchemaManifestV1 = {
-      version: 1,
-      openclawCommit: commit,
-      generatedAt: new Date().toISOString(),
-      artifacts: {
-        schema: {
-          url: `${baseUrl}/openclaw.schema.json`,
-          sha256: hash(schema),
+      await build({
+        absWorkingDir: openclawDir,
+        entryPoints: [validatorEntryPath],
+        outfile: path.join(refOutputDir, "openclaw.validator.mjs"),
+        bundle: true,
+        format: "esm",
+        platform: "node",
+        target: "node20",
+        minify: true,
+        sourcemap: false,
+        legalComments: "none",
+        treeShaking: true,
+        banner: {
+          js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",
         },
-        uiHints: {
-          url: `${baseUrl}/openclaw.ui-hints.json`,
-          sha256: hash(uiHints),
+      });
+
+      const schema = await fs.readFile(path.join(refOutputDir, "openclaw.schema.json"), "utf8");
+      const uiHints = await fs.readFile(path.join(refOutputDir, "openclaw.ui-hints.json"), "utf8");
+      const validator = await fs.readFile(path.join(refOutputDir, "openclaw.validator.mjs"), "utf8");
+
+      const baseUrl = `https://raw.githubusercontent.com/${ARTIFACT_REPOSITORY}/${ARTIFACT_REF}/schemas/${ref}`;
+      const manifest: SchemaManifestV1 = {
+        version: 1,
+        openclawCommit: commit,
+        generatedAt: new Date().toISOString(),
+        artifacts: {
+          schema: {
+            url: `${baseUrl}/openclaw.schema.json`,
+            sha256: hash(schema),
+          },
+          uiHints: {
+            url: `${baseUrl}/openclaw.ui-hints.json`,
+            sha256: hash(uiHints),
+          },
+          validator: {
+            url: `${baseUrl}/openclaw.validator.mjs`,
+            sha256: hash(validator),
+          },
         },
-        validator: {
-          url: `${baseUrl}/openclaw.validator.mjs`,
-          sha256: hash(validator),
-        },
-      },
-    };
+      };
 
-    await fs.writeFile(refManifestPath, JSON.stringify(manifest, null, 2), "utf8");
+      await fs.writeFile(refManifestPath, JSON.stringify(manifest, null, 2), "utf8");
 
-    console.log(`[${ref}] Schema artifacts updated to commit ${commit}.`);
-    console.log(`[${ref}] Manifest written to ${refManifestPath}.`);
+      console.log(`[${ref}] Schema artifacts updated to commit ${commit}.`);
+      console.log(`[${ref}] Manifest written to ${refManifestPath}.`);
 
-    if (isLatest) {
-      await cloneArtifactsToLive(refOutputDir, liveOutputDir, manifest);
-      console.log(`[latest] Synced live/ artifacts from ${ref}.`);
+      if (isLatest) {
+        await cloneArtifactsToLive(refOutputDir, liveOutputDir, manifest);
+        console.log(`[latest] Synced live/ artifacts from ${ref}.`);
+      }
+    } catch (error) {
+      console.error(`\n[!] FAILED to sync schema for tag ${ref}:`);
+      console.error(error);
+      
+      if (isLatest) {
+        console.error(`[CRITICAL] Latest tag ${ref} failed to build. Failing the entire sync.`);
+        throw error;
+      }
+      
+      console.warn(`[WARN] Skipping broken release ${ref}. Existing artifacts (if any) will remain untouched.`);
+    } finally {
+      await fs.rm(tempRoot, { recursive: true, force: true });
     }
-  } finally {
-    await fs.rm(tempRoot, { recursive: true, force: true });
-  }
   }
 }
 
