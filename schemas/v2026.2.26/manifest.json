@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "openclawCommit": "bc507080577c620243617e8fadd294bec3efa252",
+  "generatedAt": "2026-03-10T06:44:57.736Z",
+  "artifacts": {
+    "schema": {
+      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/v2026.2.26/openclaw.schema.json",
+      "sha256": "c1a31e8c33e5c3e220f9e64575ecc220888074ab09ed2b94387bbe77dab9b732"
+    },
+    "uiHints": {
+      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/v2026.2.26/openclaw.ui-hints.json",
+      "sha256": "a703ee38c21ba9125eb893f02b6b849eb1a2ad7d1b96d8f532220b0f2c7df621"
+    },
+    "validator": {
+      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/v2026.2.26/openclaw.validator.mjs",
+      "sha256": "18d48495f566d7894914888f53d78c3b6cc0159d7a430ce085658ae76a6f5756"
+    }
+  }
+}

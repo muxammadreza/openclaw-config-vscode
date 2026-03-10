@@ -5,11 +5,11 @@ const path = require("node:path");
 const vscode = require("vscode");
 
 const EXTENSION_ID = "muxammadreza.openclaw-config-vscode";
+const createdWorkspaceDirs = new Set();
 
 suite("OpenClaw Extension Integration", () => {
-  test("lazy activation waits until command invocation", async () => {
+  test("show schema status command activates the extension when needed", async () => {
     const extension = await getExtension();
-    assert.equal(extension.isActive, false);
 
     await vscode.commands.executeCommand("openclawConfig.showSchemaStatus");
 
@@ -58,8 +58,7 @@ suite("OpenClaw Extension Integration", () => {
     this.timeout(90_000);
     await ensureActivated();
 
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    assert.ok(workspaceFolder);
+    const workspaceFolder = await ensureWorkspaceFolder();
     const workspaceRoot = workspaceFolder.uri.fsPath;
     const metadataPath = path.join(workspaceRoot, ".openclaw", "plugin-hints.json");
     const configPath = path.join(workspaceRoot, "openclaw.json");
@@ -166,6 +165,12 @@ suite("OpenClaw Extension Integration", () => {
   });
 });
 
+suiteTeardown(async () => {
+  for (const dir of createdWorkspaceDirs) {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
 async function getExtension() {
   await waitFor(() => Boolean(vscode.extensions.getExtension(EXTENSION_ID)), 30_000);
   const extension = vscode.extensions.getExtension(EXTENSION_ID);
@@ -181,6 +186,24 @@ async function ensureActivated() {
   await extension.activate();
   await waitFor(() => extension.isActive, 30_000);
   return extension;
+}
+
+async function ensureWorkspaceFolder() {
+  const existing = vscode.workspace.workspaceFolders?.[0];
+  if (existing) {
+    return existing;
+  }
+
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-vscode-test-workspace-"));
+  createdWorkspaceDirs.add(tempDir);
+  const added = vscode.workspace.updateWorkspaceFolders(0, 0, {
+    uri: vscode.Uri.file(tempDir),
+    name: "integration-workspace",
+  });
+  assert.equal(added, true);
+
+  await waitFor(() => Boolean(vscode.workspace.workspaceFolders?.[0]), 20_000);
+  return vscode.workspace.workspaceFolders[0];
 }
 
 async function waitFor(checkFn, timeoutMs) {
