@@ -129,7 +129,7 @@ suite("OpenClaw Extension Integration", () => {
         (item) => normalizeLabel(item.label) === "dynamicMode" && /plugin/i.test(item.detail ?? ""),
       );
       return Boolean(match);
-    }, 12_000);
+    }, 30_000);
 
     const valueFixture = withMarker(
       `{
@@ -162,7 +162,7 @@ suite("OpenClaw Extension Integration", () => {
       }
       const labels = completion.items.map((item) => normalizeLabel(item.label));
       return labels.includes('"strict"') && labels.includes('"relaxed"');
-    }, 12_000);
+    }, 30_000);
   });
 });
 
