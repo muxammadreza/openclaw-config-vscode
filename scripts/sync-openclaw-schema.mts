@@ -143,7 +143,16 @@ export function validate(raw) {
         "utf8",
       );
 
-      await run("node", ["--import", "tsx", exportScriptPath, refOutputDir], { cwd: projectRoot });
+      try {
+        await run("node", ["--import", "tsx", exportScriptPath, refOutputDir], { cwd: projectRoot });
+      } catch (err) {
+        console.error(`[${ref}] Failed to export config schema: ${err instanceof Error ? err.message : String(err)}`);
+        if (isLatest) {
+          throw new Error(`Critical failure exporting latest schema for ${ref}. Cannot continue.`);
+        }
+        console.warn(`[${ref}] Skipping artifact generation due to export error.`);
+        continue;
+      }
 
       await build({
         absWorkingDir: openclawDir,

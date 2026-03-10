@@ -3,6 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { runTests } from "@vscode/test-electron";
 
+import { pathToFileURL } from "node:url";
+
 async function main(): Promise<void> {
   const extensionDevelopmentPath = path.resolve(__dirname, "../../");
   const extensionTestsPath = path.resolve(__dirname, "./suite/index.js");
@@ -14,7 +16,7 @@ async function main(): Promise<void> {
       extensionTestsPath,
       launchArgs: [workspacePath, "--disable-extensions"],
       extensionTestsEnv: {
-        OPENCLAW_MANIFEST_URL: "http://127.0.0.1:9/manifest.json",
+        OPENCLAW_MANIFEST_URL: pathToFileURL(path.join(extensionDevelopmentPath, "schemas/live/manifest.json")).href,
       },
     });
   } finally {
