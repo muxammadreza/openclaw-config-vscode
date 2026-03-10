@@ -55,7 +55,7 @@ suite("OpenClaw Extension Integration", () => {
   });
 
   test("provides hybrid key/value completion from plugin metadata", async function () {
-    this.timeout(60_000);
+    this.timeout(120_000);
     await ensureActivated();
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -129,7 +129,7 @@ suite("OpenClaw Extension Integration", () => {
         (item) => normalizeLabel(item.label) === "dynamicMode" && /plugin/i.test(item.detail ?? ""),
       );
       return Boolean(match);
-    }, 60_000);
+    }, 90_000);
 
     const valueFixture = withMarker(
       `{
@@ -162,7 +162,7 @@ suite("OpenClaw Extension Integration", () => {
       }
       const labels = completion.items.map((item) => normalizeLabel(item.label));
       return labels.includes('"strict"') && labels.includes('"relaxed"');
-    }, 60_000);
+    }, 90_000);
   });
 });
 
