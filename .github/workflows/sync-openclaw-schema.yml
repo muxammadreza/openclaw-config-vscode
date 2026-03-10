@@ -42,6 +42,7 @@ jobs:
         env:
           SCHEMA_REPOSITORY: ${{ github.repository }}
           SCHEMA_ARTIFACT_REF: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm sync:schema
 
       - name: Detect changes

@@ -32,7 +32,15 @@ const liveOutputDir = path.join(schemasRoot, "live");
 async function main(): Promise<void> {
   let isLatestResolved = false;
   if (TARGET_REFS.length === 0) {
-    const res = await fetch("https://api.github.com/repos/openclaw/openclaw/releases?per_page=100");
+    const headers = new Headers({
+      "User-Agent": "openclaw-config-vscode",
+      "Accept": "application/vnd.github.v3+json",
+    });
+    if (process.env.GITHUB_TOKEN) {
+      headers.set("Authorization", `Bearer ${process.env.GITHUB_TOKEN}`);
+    }
+
+    const res = await fetch("https://api.github.com/repos/openclaw/openclaw/releases?per_page=100", { headers });
     if (!res.ok) {
       throw new Error(`Failed to fetch releases from GitHub API: ${res.statusText}`);
     }
