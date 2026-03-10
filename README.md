@@ -1,8 +1,8 @@
 # OpenClaw Config VS Code Extension
 
-[![CI](https://github.com/jorekai/openclaw-config-vscode/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jorekai/openclaw-config-vscode/actions/workflows/ci.yml)
-[![Virus Scan (ClamAV)](https://github.com/jorekai/openclaw-config-vscode/actions/workflows/virus-scan.yml/badge.svg?branch=main)](https://github.com/jorekai/openclaw-config-vscode/actions/workflows/virus-scan.yml)
-[![Test Coverage](https://github.com/jorekai/openclaw-config-vscode/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/jorekai/openclaw-config-vscode/actions/workflows/coverage.yml)
+[![CI](https://github.com/muxammadreza/openclaw-config-vscode/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/muxammadreza/openclaw-config-vscode/actions/workflows/ci.yml)
+[![Virus Scan (ClamAV)](https://github.com/muxammadreza/openclaw-config-vscode/actions/workflows/virus-scan.yml/badge.svg?branch=main)](https://github.com/muxammadreza/openclaw-config-vscode/actions/workflows/virus-scan.yml)
+[![Test Coverage](https://github.com/muxammadreza/openclaw-config-vscode/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/muxammadreza/openclaw-config-vscode/actions/workflows/coverage.yml)
 
 DX-first VS Code support for `openclaw.json` with schema validation, smart diagnostics, quick fixes, and guided configuration workflows.
 
@@ -66,7 +66,7 @@ Then launch the extension in VS Code from this repo:
 | `openclawConfig.sync.ttlHours` | Sync cache TTL in hours | `6` |
 | `openclawConfig.sync.manifestUrl` | Remote manifest source | GitHub raw manifest URL |
 | `openclawConfig.sync.allowedHosts` | Host allowlist for sync URLs | `["raw.githubusercontent.com"]` |
-| `openclawConfig.sync.allowedRepositories` | Repository allowlist for artifact URLs | `["jorekai/openclaw-config-vscode"]` |
+| `openclawConfig.sync.allowedRepositories` | Repository allowlist for artifact URLs | `["muxammadreza/openclaw-config-vscode"]` |
 | `openclawConfig.codeActions.enabled` | Toggle OpenClaw quick fixes | `true` |
 | `openclawConfig.integrator.strictSecrets` | Elevate secret hygiene to errors | `false` |
 | `openclawConfig.integrator.explainOnHover` | Show explain text on hover | `true` |

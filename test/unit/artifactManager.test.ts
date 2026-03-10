@@ -245,7 +245,7 @@ describe("artifactManager", () => {
       fetchFn: async () => new Response("{}", { status: 200 }),
       securityPolicy: {
         allowedHosts: ["raw.githubusercontent.com"],
-        allowedRepositories: ["jorekai/openclaw-config-vscode"],
+        allowedRepositories: ["muxammadreza/openclaw-config-vscode"],
       },
     });
 
@@ -261,7 +261,7 @@ describe("artifactManager", () => {
     const manager = new SchemaArtifactManager({
       context: fixture.context,
       manifestUrl:
-        "https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/schemas/live/manifest.json",
+        "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/manifest.json",
       fetchFn: async () => {
         throw new Error("offline");
       },
@@ -288,11 +288,11 @@ describe("artifactManager", () => {
           sha256: "a".repeat(64),
         },
         uiHints: {
-          url: "https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/openclaw.ui-hints.json",
+          url: "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/openclaw.ui-hints.json",
           sha256: "b".repeat(64),
         },
         validator: {
-          url: "https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/openclaw.validator.mjs",
+          url: "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/openclaw.validator.mjs",
           sha256: "c".repeat(64),
         },
       },
@@ -301,7 +301,7 @@ describe("artifactManager", () => {
     const manager = new SchemaArtifactManager({
       context: fixture.context,
       manifestUrl:
-        "https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/schemas/live/manifest.json",
+        "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/manifest.json",
       fetchFn: async (url: string | URL | Request) => {
         const key = String(url);
         if (key.endsWith("manifest.json")) {

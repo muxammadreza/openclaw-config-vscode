@@ -56,7 +56,7 @@ test -n "$OVSX_PAT" && echo "OVSX_PAT set"
 
 Expected result:
 
-- Publisher is `jorekai`.
+- Publisher is `muxammadreza`.
 - Both token checks report as set.
 
 5. Secret scan preflight (same image profile as CI):

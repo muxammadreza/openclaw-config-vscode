@@ -4,15 +4,15 @@
   "generatedAt": "2026-03-10T04:34:58.392Z",
   "artifacts": {
     "schema": {
-      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/openclaw.schema.json",
+      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/v2026.3.8/openclaw.schema.json",
       "sha256": "7f210236546923ee8ea58baf2b96ac879eca2661de9bd599a5c6bc20dadf764e"
     },
     "uiHints": {
-      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/openclaw.ui-hints.json",
+      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/v2026.3.8/openclaw.ui-hints.json",
       "sha256": "08a914621576d90c0db2da99c70c7eaa907b92b3ac9f83bcd1134d3f30e620ad"
     },
     "validator": {
-      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/openclaw.validator.mjs",
+      "url": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/v2026.3.8/openclaw.validator.mjs",
       "sha256": "f91269c8ba50c5ba8d4747726425a04d8162b8aef2aae73ca826cd86df907c87"
     }
   }

@@ -12,6 +12,7 @@ import { isOpenClawConfigDocument } from "./utils";
 import { registerOpenClawCodeActions } from "./validation/codeActions";
 import { OpenClawIntegratorDiagnostics } from "./validation/integratorDiagnostics";
 import { OpenClawZodShadowDiagnostics } from "./validation/zodShadow";
+import { registerAutoUpdater } from "./extension/updater";
 
 const BACKGROUND_SYNC_INTERVAL_MS = 15 * 60 * 1_000;
 
@@ -23,6 +24,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const schemaProvider = new OpenClawSchemaContentProvider(artifacts);
   const zodShadow = new OpenClawZodShadowDiagnostics(artifacts);
   const integratorDiagnostics = new OpenClawIntegratorDiagnostics();
+
+  registerAutoUpdater(context, output);
 
   context.subscriptions.push(
     schemaProvider,
@@ -71,6 +74,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const settings = readSettings();
       artifacts.configureRemote({
         manifestUrl: settings.manifestUrl,
+        schemaVersion: settings.schemaVersion,
         securityPolicy: {
           requireHttps: true,
           allowedHosts: settings.allowedHosts,

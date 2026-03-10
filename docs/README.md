@@ -33,7 +33,7 @@ Use this index to find the fastest path for your current task.
 
 | Document | Purpose |
 |---|---|
-| [`Project README`](https://github.com/jorekai/openclaw-config-vscode/blob/main/README.md) | Compact project hub and quick navigation |
+| [`Project README`](https://github.com/muxammadreza/openclaw-config-vscode/blob/main/README.md) | Compact project hub and quick navigation |
 | [`getting-started.md`](./getting-started.md) | First-run success path in under 5 minutes |
 | [`commands.md`](./commands.md) | Full command reference with preconditions and outcomes |
 | [`configuration.md`](./configuration.md) | Complete settings reference and safe configuration patterns |

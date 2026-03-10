@@ -4,7 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const vscode = require("vscode");
 
-const EXTENSION_ID = "jorekai.openclaw-config-vscode";
+const EXTENSION_ID = "muxammadreza.openclaw-config-vscode";
 
 suite("OpenClaw Extension Integration", () => {
   test("lazy activation waits until command invocation", async () => {

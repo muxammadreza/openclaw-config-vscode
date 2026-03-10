@@ -3,7 +3,7 @@
   "displayName": "OpenClaw Config",
   "description": "Lightweight VS Code support for openclaw.json with live schema updates and Zod shadow diagnostics.",
   "version": "0.1.4",
-  "publisher": "jorekai",
+  "publisher": "muxammadreza",
   "license": "MIT",
   "icon": "assets/icon.png",
   "keywords": [
@@ -30,16 +30,17 @@
     "onCommand:openclawConfig.insertSectionSnippet",
     "onCommand:openclawConfig.explainSelection",
     "onCommand:openclawConfig.normalizeConfig",
-    "onCommand:openclawConfig.showSchemaStatus"
+    "onCommand:openclawConfig.showSchemaStatus",
+    "onCommand:openclawConfig.checkForUpdates"
   ],
   "main": "./dist/extension.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jorekai/openclaw-config-vscode.git"
+    "url": "https://github.com/muxammadreza/openclaw-config-vscode.git"
   },
-  "homepage": "https://github.com/jorekai/openclaw-config-vscode#readme",
+  "homepage": "https://github.com/muxammadreza/openclaw-config-vscode#readme",
   "bugs": {
-    "url": "https://github.com/jorekai/openclaw-config-vscode/issues"
+    "url": "https://github.com/muxammadreza/openclaw-config-vscode/issues"
   },
   "files": [
     "dist/extension.js",
@@ -78,6 +79,10 @@
       {
         "command": "openclawConfig.showSchemaStatus",
         "title": "OpenClaw: Show Schema Status"
+      },
+      {
+        "command": "openclawConfig.checkForUpdates",
+        "title": "OpenClaw: Check for Updates"
       }
     ],
     "configuration": {
@@ -97,7 +102,7 @@
         },
         "openclawConfig.sync.manifestUrl": {
           "type": "string",
-          "default": "https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/schemas/live/manifest.json",
+          "default": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/manifest.json",
           "description": "Manifest URL used for live schema synchronization."
         },
         "openclawConfig.sync.allowedHosts": {
@@ -113,7 +118,7 @@
         "openclawConfig.sync.allowedRepositories": {
           "type": "array",
           "default": [
-            "jorekai/openclaw-config-vscode"
+            "muxammadreza/openclaw-config-vscode"
           ],
           "items": {
             "type": "string"
@@ -144,6 +149,16 @@
           "type": "string",
           "default": ".openclaw/plugin-hints.json",
           "description": "Workspace-relative path to local plugin metadata hints."
+        },
+        "openclawConfig.sync.schemaVersion": {
+          "type": "string",
+          "default": "latest",
+          "description": "The specific OpenClaw version tag to sync schemas for (e.g. \"v2026.3.8\"). Use \"latest\" to always pull the most recent stable release."
+        },
+        "openclawConfig.updates.autoUpdate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically check for and install extension updates from GitHub Releases when side-loaded."
         }
       }
     },
@@ -200,6 +215,9 @@
     "overrides": {
       "esbuild": "0.25.12",
       "minimatch": "10.2.1"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

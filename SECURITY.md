@@ -15,7 +15,7 @@ Please do **not** open public issues for security vulnerabilities.
 
 Use GitHub private vulnerability reporting:
 
-- [Report a vulnerability](https://github.com/jorekai/openclaw-config-vscode/security/advisories/new)
+- [Report a vulnerability](https://github.com/muxammadreza/openclaw-config-vscode/security/advisories/new)
 
 If private reporting is unavailable, open a private channel with the maintainers and include:
 

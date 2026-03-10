@@ -17,6 +17,8 @@ export type ExtensionSettings = {
   pluginMetadataUrl: string;
   pluginMetadataLocalPath: string;
   codeActionsEnabled: boolean;
+  schemaVersion: string;
+  autoUpdate: boolean;
 };
 
 export function readSettings(): ExtensionSettings {
@@ -45,6 +47,9 @@ export function readSettings(): ExtensionSettings {
       .trim();
 
   const codeActionsEnabled = config.get<boolean>("codeActions.enabled", true);
+  
+  const schemaVersion = config.get<string>("sync.schemaVersion", "latest").trim();
+  const autoUpdate = config.get<boolean>("updates.autoUpdate", true);
 
   return {
     ttlHours,
@@ -57,6 +62,8 @@ export function readSettings(): ExtensionSettings {
     pluginMetadataUrl,
     pluginMetadataLocalPath,
     codeActionsEnabled,
+    schemaVersion,
+    autoUpdate,
   };
 }
 

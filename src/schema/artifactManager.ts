@@ -167,11 +167,12 @@ export class SchemaArtifactManager {
 
   configureRemote(options: {
     manifestUrl?: string;
+    schemaVersion?: string;
     securityPolicy?: Partial<ManifestSecurityPolicy>;
   }): void {
-    if (options.manifestUrl) {
-      this.manifestUrl = normalizeManifestUrl(options.manifestUrl);
-    }
+    const rawUrl = options.manifestUrl ?? this.manifestUrl;
+    this.manifestUrl = normalizeManifestUrl(rawUrl, options.schemaVersion);
+
     if (options.securityPolicy) {
       const merged: ManifestSecurityPolicy = {
         requireHttps: options.securityPolicy.requireHttps ?? this.securityPolicy.requireHttps,
@@ -479,9 +480,19 @@ export class SchemaArtifactManager {
   }
 }
 
-function normalizeManifestUrl(manifestUrl: string): string {
+function normalizeManifestUrl(manifestUrl: string, schemaVersion?: string): string {
   const trimmed = manifestUrl.trim();
-  return trimmed || DEFAULT_MANIFEST_URL;
+  const rawUrl = trimmed || DEFAULT_MANIFEST_URL;
+  
+  try {
+    const parsedUrl = new URL(rawUrl);
+    if (schemaVersion && schemaVersion !== "latest") {
+      parsedUrl.pathname = parsedUrl.pathname.replace(/\/schemas\/live\//, `/schemas/${schemaVersion}/`);
+    }
+    return parsedUrl.href;
+  } catch {
+    return rawUrl;
+  }
 }
 
 function toErrorMessage(error: unknown): string {

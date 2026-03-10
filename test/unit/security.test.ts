@@ -12,25 +12,25 @@ describe("schema security policy", () => {
     const normalized = normalizePolicyInput({
       requireHttps: true,
       allowedHosts: [" Raw.GitHubUserContent.Com ", "raw.githubusercontent.com", ""],
-      allowedRepositories: [" Jorekai/OpenClaw-Config-Vscode ", "jorekai/openclaw-config-vscode"],
+      allowedRepositories: [" Jorekai/OpenClaw-Config-Vscode ", "muxammadreza/openclaw-config-vscode"],
     });
 
     assert.deepEqual(normalized.allowedHosts, ["raw.githubusercontent.com"]);
-    assert.deepEqual(normalized.allowedRepositories, ["jorekai/openclaw-config-vscode"]);
+    assert.deepEqual(normalized.allowedRepositories, ["muxammadreza/openclaw-config-vscode"]);
   });
 
   it("accepts https URL with allowlisted host and repository", () => {
     const evaluation = evaluateUrlSecurity(
-      "https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/schemas/live/manifest.json",
+      "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/manifest.json",
       {
         requireHttps: true,
         allowedHosts: ["raw.githubusercontent.com"],
-        allowedRepositories: ["jorekai/openclaw-config-vscode"],
+        allowedRepositories: ["muxammadreza/openclaw-config-vscode"],
       },
     );
 
     assert.equal(evaluation.allowed, true);
-    assert.equal(evaluation.repository, "jorekai/openclaw-config-vscode");
+    assert.equal(evaluation.repository, "muxammadreza/openclaw-config-vscode");
   });
 
   it("rejects non-https URL when https is required", () => {
@@ -50,7 +50,7 @@ describe("schema security policy", () => {
       {
         requireHttps: true,
         allowedHosts: ["raw.githubusercontent.com"],
-        allowedRepositories: ["jorekai/openclaw-config-vscode"],
+        allowedRepositories: ["muxammadreza/openclaw-config-vscode"],
       },
     );
 
@@ -73,9 +73,9 @@ describe("schema security policy", () => {
 
   it("extracts repository from URL path", () => {
     const repository = extractRepositoryFromUrl(
-      new URL("https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/schemas/live/manifest.json"),
+      new URL("https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/manifest.json"),
     );
-    assert.equal(repository, "jorekai/openclaw-config-vscode");
+    assert.equal(repository, "muxammadreza/openclaw-config-vscode");
     assert.deepEqual(normalizeList(["A", " a ", ""]), ["a"]);
   });
 });

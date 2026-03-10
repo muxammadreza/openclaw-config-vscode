@@ -67,7 +67,7 @@ Verification:
 
 Tasks:
 
-1. Ensure VS Marketplace publisher matches `jorekai`.
+1. Ensure VS Marketplace publisher matches `muxammadreza`.
 2. Ensure Open VSX namespace exists and is accessible.
 3. Configure tokens:
    - `VSCE_PAT`

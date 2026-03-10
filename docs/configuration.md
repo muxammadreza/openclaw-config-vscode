@@ -8,9 +8,9 @@ Goal: configure validation, sync, security, and plugin hint behavior safely and 
 |---|---|---|---|---|
 | `openclawConfig.zodShadow.enabled` | `boolean` | `true` | `true` / `false` | Keep enabled for richer diagnostics; disable only for focused schema-only debugging. |
 | `openclawConfig.sync.ttlHours` | `number` | `6` | `1..168` | Lower for more frequent updates, higher for network-constrained environments. |
-| `openclawConfig.sync.manifestUrl` | `string` | `https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/schemas/live/manifest.json` | HTTPS URL | Use trusted, versioned manifest endpoints only. |
+| `openclawConfig.sync.manifestUrl` | `string` | `https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/manifest.json` | HTTPS URL | Use trusted, versioned manifest endpoints only. |
 | `openclawConfig.sync.allowedHosts` | `string[]` | `["raw.githubusercontent.com"]` | Hostnames | Keep strict allowlist. Add hosts only when needed and trusted. |
-| `openclawConfig.sync.allowedRepositories` | `string[]` | `["jorekai/openclaw-config-vscode"]` | `owner/repo` values or `"*"` | Prefer explicit repositories. Use `"*"` only in controlled environments. |
+| `openclawConfig.sync.allowedRepositories` | `string[]` | `["muxammadreza/openclaw-config-vscode"]` | `owner/repo` values or `"*"` | Prefer explicit repositories. Use `"*"` only in controlled environments. |
 | `openclawConfig.codeActions.enabled` | `boolean` | `true` | `true` / `false` | Disable only if you need diagnostics without automatic fix suggestions. |
 | `openclawConfig.integrator.strictSecrets` | `boolean` | `false` | `true` / `false` | Set to `true` in CI/hardening phases to fail fast on cleartext secret values. |
 | `openclawConfig.integrator.explainOnHover` | `boolean` | `true` | `true` / `false` | Disable if hover noise is too high for your workflow. |
@@ -41,12 +41,12 @@ Behavior summary:
 {
   "openclawConfig.zodShadow.enabled": true,
   "openclawConfig.sync.ttlHours": 6,
-  "openclawConfig.sync.manifestUrl": "https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/schemas/live/manifest.json",
+  "openclawConfig.sync.manifestUrl": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/manifest.json",
   "openclawConfig.sync.allowedHosts": [
     "raw.githubusercontent.com"
   ],
   "openclawConfig.sync.allowedRepositories": [
-    "jorekai/openclaw-config-vscode"
+    "muxammadreza/openclaw-config-vscode"
   ],
   "openclawConfig.codeActions.enabled": true,
   "openclawConfig.integrator.strictSecrets": false,
@@ -65,7 +65,7 @@ Behavior summary:
     "raw.githubusercontent.com"
   ],
   "openclawConfig.sync.allowedRepositories": [
-    "jorekai/openclaw-config-vscode"
+    "muxammadreza/openclaw-config-vscode"
   ],
   "openclawConfig.integrator.strictSecrets": true
 }
@@ -75,12 +75,12 @@ Behavior summary:
 
 ```json
 {
-  "openclawConfig.sync.manifestUrl": "https://raw.githubusercontent.com/jorekai/openclaw-config-vscode/main/schemas/live/manifest.json",
+  "openclawConfig.sync.manifestUrl": "https://raw.githubusercontent.com/muxammadreza/openclaw-config-vscode/main/schemas/live/manifest.json",
   "openclawConfig.sync.allowedHosts": [
     "raw.githubusercontent.com"
   ],
   "openclawConfig.sync.allowedRepositories": [
-    "jorekai/openclaw-config-vscode"
+    "muxammadreza/openclaw-config-vscode"
   ]
 }
 ```

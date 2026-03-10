@@ -19,37 +19,67 @@ type SchemaManifestV1 = {
 
 const TRUSTED_OPENCLAW_REPO = "https://github.com/openclaw/openclaw.git";
 const OPENCLAW_REPO = normalizeOpenClawRepo(process.env.OPENCLAW_REPO ?? TRUSTED_OPENCLAW_REPO);
-const OPENCLAW_REF = process.env.OPENCLAW_REF ?? "main";
+let TARGET_REFS = process.env.OPENCLAW_REF ? [process.env.OPENCLAW_REF] : [];
 const ARTIFACT_REPOSITORY =
-  process.env.SCHEMA_REPOSITORY ?? process.env.GITHUB_REPOSITORY ?? "jorekai/openclaw-config-vscode";
+  process.env.SCHEMA_REPOSITORY ?? process.env.GITHUB_REPOSITORY ?? "muxammadreza/openclaw-config-vscode";
 const ARTIFACT_REF = process.env.SCHEMA_ARTIFACT_REF ?? "main";
 const FORCE_SYNC = process.env.FORCE_SYNC === "1";
 
 const projectRoot = process.cwd();
-const outputDir = path.join(projectRoot, "schemas", "live");
-const manifestPath = path.join(outputDir, "manifest.json");
+const schemasRoot = path.join(projectRoot, "schemas");
+const liveOutputDir = path.join(schemasRoot, "live");
 
 async function main(): Promise<void> {
-  await fs.mkdir(outputDir, { recursive: true });
-
-  const upstreamHead = await resolveRemoteHeadCommit();
-  const currentManifest = await readManifestIfExists(manifestPath);
-
-  if (
-    currentManifest &&
-    currentManifest.openclawCommit === upstreamHead &&
-    !FORCE_SYNC &&
-    (await hasCompleteArtifactSet(outputDir))
-  ) {
-    console.log(`No schema update needed (commit ${upstreamHead}).`);
-    return;
+  let isLatestResolved = false;
+  if (TARGET_REFS.length === 0) {
+    const res = await fetch("https://api.github.com/repos/openclaw/openclaw/releases?per_page=100");
+    if (!res.ok) {
+      throw new Error(`Failed to fetch releases from GitHub API: ${res.statusText}`);
+    }
+    const data = await res.json() as { tag_name: string }[];
+    TARGET_REFS = data.map(release => release.tag_name);
+    console.log(`Resolved ${TARGET_REFS.length} OpenClaw releases.`);
+    isLatestResolved = true;
   }
 
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-schema-sync-"));
-  const openclawDir = path.join(tempRoot, "openclaw");
-  try {
-    await run("git", ["clone", "--depth", "1", "--branch", OPENCLAW_REF, OPENCLAW_REPO, openclawDir]);
-    const commit = (await run("git", ["rev-parse", "HEAD"], { cwd: openclawDir })).stdout.trim();
+  const latestTag = TARGET_REFS[0];
+
+  for (const ref of TARGET_REFS) {
+    console.log(`\n--- Syncing Schema for ${ref} ---`);
+    const isLatest = isLatestResolved && ref === latestTag;
+    const refOutputDir = path.join(schemasRoot, ref);
+    
+    await fs.mkdir(refOutputDir, { recursive: true });
+    if (isLatest) {
+      await fs.mkdir(liveOutputDir, { recursive: true });
+    }
+
+    const upstreamHead = await resolveRemoteHeadCommit(ref);
+    const refManifestPath = path.join(refOutputDir, "manifest.json");
+    const currentManifest = await readManifestIfExists(refManifestPath);
+
+    if (
+      currentManifest &&
+      currentManifest.openclawCommit === upstreamHead &&
+      !FORCE_SYNC &&
+      (await hasCompleteArtifactSet(refOutputDir))
+    ) {
+      console.log(`[${ref}] No schema update needed (commit ${upstreamHead}).`);
+      
+      // If it's the latest tag, we still need to ensure live/ is up to date
+      if (isLatest) {
+        await cloneArtifactsToLive(refOutputDir, liveOutputDir, currentManifest);
+        console.log(`[latest] Synced live/ artifacts from ${ref}.`);
+      }
+      
+      continue;
+    }
+
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-schema-sync-"));
+    const openclawDir = path.join(tempRoot, "openclaw");
+    try {
+      await run("git", ["clone", "--depth", "1", "--branch", ref, OPENCLAW_REPO, openclawDir]);
+      const commit = (await run("git", ["rev-parse", "HEAD"], { cwd: openclawDir })).stdout.trim();
 
     await run("pnpm", ["install", "--frozen-lockfile", "--ignore-scripts"], { cwd: openclawDir });
 
@@ -106,12 +136,12 @@ export function validate(raw) {
       "utf8",
     );
 
-    await run("node", ["--import", "tsx", exportScriptPath, outputDir], { cwd: projectRoot });
+    await run("node", ["--import", "tsx", exportScriptPath, refOutputDir], { cwd: projectRoot });
 
     await build({
       absWorkingDir: openclawDir,
       entryPoints: [validatorEntryPath],
-      outfile: path.join(outputDir, "openclaw.validator.mjs"),
+      outfile: path.join(refOutputDir, "openclaw.validator.mjs"),
       bundle: true,
       format: "esm",
       platform: "node",
@@ -125,11 +155,11 @@ export function validate(raw) {
       },
     });
 
-    const schema = await fs.readFile(path.join(outputDir, "openclaw.schema.json"), "utf8");
-    const uiHints = await fs.readFile(path.join(outputDir, "openclaw.ui-hints.json"), "utf8");
-    const validator = await fs.readFile(path.join(outputDir, "openclaw.validator.mjs"), "utf8");
+    const schema = await fs.readFile(path.join(refOutputDir, "openclaw.schema.json"), "utf8");
+    const uiHints = await fs.readFile(path.join(refOutputDir, "openclaw.ui-hints.json"), "utf8");
+    const validator = await fs.readFile(path.join(refOutputDir, "openclaw.validator.mjs"), "utf8");
 
-    const baseUrl = `https://raw.githubusercontent.com/${ARTIFACT_REPOSITORY}/${ARTIFACT_REF}/schemas/live`;
+    const baseUrl = `https://raw.githubusercontent.com/${ARTIFACT_REPOSITORY}/${ARTIFACT_REF}/schemas/${ref}`;
     const manifest: SchemaManifestV1 = {
       version: 1,
       openclawCommit: commit,
@@ -150,13 +180,40 @@ export function validate(raw) {
       },
     };
 
-    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+    await fs.writeFile(refManifestPath, JSON.stringify(manifest, null, 2), "utf8");
 
-    console.log(`Schema artifacts updated to commit ${commit}.`);
-    console.log(`Manifest written to ${manifestPath}.`);
+    console.log(`[${ref}] Schema artifacts updated to commit ${commit}.`);
+    console.log(`[${ref}] Manifest written to ${refManifestPath}.`);
+
+    if (isLatest) {
+      await cloneArtifactsToLive(refOutputDir, liveOutputDir, manifest);
+      console.log(`[latest] Synced live/ artifacts from ${ref}.`);
+    }
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
+  }
+}
+
+async function cloneArtifactsToLive(srcDir: string, destDir: string, manifest: SchemaManifestV1) {
+  const files = [
+    "openclaw.schema.json",
+    "openclaw.ui-hints.json",
+    "openclaw.validator.mjs",
+  ];
+  for (const file of files) {
+    await fs.copyFile(path.join(srcDir, file), path.join(destDir, file));
+  }
+  
+  // Create a deep copy of the manifest to amend URLs
+  const liveManifest = JSON.parse(JSON.stringify(manifest)) as SchemaManifestV1;
+  const baseUrl = `https://raw.githubusercontent.com/${ARTIFACT_REPOSITORY}/${ARTIFACT_REF}/schemas/live`;
+  
+  liveManifest.artifacts.schema.url = `${baseUrl}/openclaw.schema.json`;
+  liveManifest.artifacts.uiHints.url = `${baseUrl}/openclaw.ui-hints.json`;
+  liveManifest.artifacts.validator.url = `${baseUrl}/openclaw.validator.mjs`;
+
+  await fs.writeFile(path.join(destDir, "manifest.json"), JSON.stringify(liveManifest, null, 2), "utf8");
 }
 
 function hash(value: string): string {
@@ -179,11 +236,11 @@ function normalizeOpenClawRepo(rawRepo: string): string {
   return `${parsed.protocol}//${parsed.hostname}${normalizedPath}`;
 }
 
-async function resolveRemoteHeadCommit(): Promise<string> {
-  const { stdout } = await run("git", ["ls-remote", OPENCLAW_REPO, `refs/heads/${OPENCLAW_REF}`]);
+async function resolveRemoteHeadCommit(ref: string): Promise<string> {
+  const { stdout } = await run("git", ["ls-remote", OPENCLAW_REPO, ref]);
   const line = stdout.trim().split("\n").find(Boolean);
   if (!line) {
-    throw new Error("Unable to resolve remote OpenClaw head commit.");
+    throw new Error(`Unable to resolve remote OpenClaw head commit for ${ref}.`);
   }
   const [commit] = line.split("\t");
   if (!commit) {
