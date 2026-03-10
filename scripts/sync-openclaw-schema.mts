@@ -80,8 +80,7 @@ async function main(): Promise<void> {
     try {
       await run("git", ["clone", "--depth", "1", "--branch", ref, OPENCLAW_REPO, openclawDir]);
       const commit = (await run("git", ["rev-parse", "HEAD"], { cwd: openclawDir })).stdout.trim();
-
-    await run("pnpm", ["install", "--frozen-lockfile", "--ignore-scripts"], { cwd: openclawDir });
+    await run("pnpm", ["install", "--no-frozen-lockfile", "--ignore-scripts"], { cwd: openclawDir });
 
     const exportScriptPath = path.join(tempRoot, "export-config-schema.ts");
     const validatorEntryPath = path.join(tempRoot, "openclaw-validator-entry.ts");
