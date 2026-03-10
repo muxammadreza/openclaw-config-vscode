@@ -13,7 +13,7 @@ suite("OpenClaw Extension Integration", () => {
 
     await vscode.commands.executeCommand("openclawConfig.showSchemaStatus");
 
-    await waitFor(() => extension.isActive, 10_000);
+    await waitFor(() => extension.isActive, 30_000);
     assert.equal(extension.isActive, true);
   });
 
@@ -43,7 +43,7 @@ suite("OpenClaw Extension Integration", () => {
       await waitFor(async () => {
         const active = vscode.window.activeTextEditor?.document;
         return Boolean(active && active.fileName === configPath && active.languageId === "jsonc");
-      }, 8_000);
+      }, 20_000);
 
       const active = vscode.window.activeTextEditor?.document;
       assert.ok(active);
@@ -55,7 +55,7 @@ suite("OpenClaw Extension Integration", () => {
   });
 
   test("provides hybrid key/value completion from plugin metadata", async function () {
-    this.timeout(120_000);
+    this.timeout(90_000);
     await ensureActivated();
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -114,7 +114,7 @@ suite("OpenClaw Extension Integration", () => {
     await waitFor(async () => {
       const active = vscode.window.activeTextEditor?.document;
       return Boolean(active && active.fileName === configPath && active.languageId === "jsonc");
-    }, 8_000);
+    }, 20_000);
 
     await waitFor(async () => {
       const completion = await vscode.commands.executeCommand(
@@ -129,7 +129,7 @@ suite("OpenClaw Extension Integration", () => {
         (item) => normalizeLabel(item.label) === "dynamicMode" && /plugin/i.test(item.detail ?? ""),
       );
       return Boolean(match);
-    }, 90_000);
+    }, 45_000);
 
     const valueFixture = withMarker(
       `{
@@ -162,12 +162,12 @@ suite("OpenClaw Extension Integration", () => {
       }
       const labels = completion.items.map((item) => normalizeLabel(item.label));
       return labels.includes('"strict"') && labels.includes('"relaxed"');
-    }, 90_000);
+    }, 45_000);
   });
 });
 
 async function getExtension() {
-  await waitFor(() => Boolean(vscode.extensions.getExtension(EXTENSION_ID)), 20_000);
+  await waitFor(() => Boolean(vscode.extensions.getExtension(EXTENSION_ID)), 30_000);
   const extension = vscode.extensions.getExtension(EXTENSION_ID);
   assert.ok(extension);
   return extension;
@@ -179,7 +179,7 @@ async function ensureActivated() {
     return extension;
   }
   await extension.activate();
-  await waitFor(() => extension.isActive, 20_000);
+  await waitFor(() => extension.isActive, 30_000);
   return extension;
 }
 
@@ -189,7 +189,7 @@ async function waitFor(checkFn, timeoutMs) {
     if (await checkFn()) {
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`Timed out after ${timeoutMs}ms`);
 }

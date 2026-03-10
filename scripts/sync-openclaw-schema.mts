@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     console.log(`\n--- Syncing Schema for ${ref} ---`);
     const isLatest = isLatestResolved && ref === latestTag;
     const refOutputDir = path.join(schemasRoot, ref);
-    
+
     await fs.mkdir(refOutputDir, { recursive: true });
     if (isLatest) {
       await fs.mkdir(liveOutputDir, { recursive: true });
@@ -73,13 +73,13 @@ async function main(): Promise<void> {
       (await hasCompleteArtifactSet(refOutputDir))
     ) {
       console.log(`[${ref}] No schema update needed (commit ${upstreamHead}).`);
-      
+
       // If it's the latest tag, we still need to ensure live/ is up to date
       if (isLatest) {
         await cloneArtifactsToLive(refOutputDir, liveOutputDir, currentManifest);
         console.log(`[latest] Synced live/ artifacts from ${ref}.`);
       }
-      
+
       continue;
     }
 
@@ -88,8 +88,6 @@ async function main(): Promise<void> {
     try {
       await run("git", ["clone", "--depth", "1", "--branch", ref, OPENCLAW_REPO, openclawDir]);
       const commit = (await run("git", ["rev-parse", "HEAD"], { cwd: openclawDir })).stdout.trim();
-      
-      // Use --no-frozen-lockfile to avoid checksum mismatches for different platforms/pnpm versions during upstream clone
       await run("pnpm", ["install", "--no-frozen-lockfile", "--ignore-scripts"], { cwd: openclawDir });
 
       const exportScriptPath = path.join(tempRoot, "export-config-schema.ts");
@@ -198,16 +196,6 @@ export function validate(raw) {
         await cloneArtifactsToLive(refOutputDir, liveOutputDir, manifest);
         console.log(`[latest] Synced live/ artifacts from ${ref}.`);
       }
-    } catch (error) {
-      console.error(`\n[!] FAILED to sync schema for tag ${ref}:`);
-      console.error(error);
-      
-      if (isLatest) {
-        console.error(`[CRITICAL] Latest tag ${ref} failed to build. Failing the entire sync.`);
-        throw error;
-      }
-      
-      console.warn(`[WARN] Skipping broken release ${ref}. Existing artifacts (if any) will remain untouched.`);
     } finally {
       await fs.rm(tempRoot, { recursive: true, force: true });
     }
@@ -223,11 +211,11 @@ async function cloneArtifactsToLive(srcDir: string, destDir: string, manifest: S
   for (const file of files) {
     await fs.copyFile(path.join(srcDir, file), path.join(destDir, file));
   }
-  
+
   // Create a deep copy of the manifest to amend URLs
   const liveManifest = JSON.parse(JSON.stringify(manifest)) as SchemaManifestV1;
   const baseUrl = `https://raw.githubusercontent.com/${ARTIFACT_REPOSITORY}/${ARTIFACT_REF}/schemas/live`;
-  
+
   liveManifest.artifacts.schema.url = `${baseUrl}/openclaw.schema.json`;
   liveManifest.artifacts.uiHints.url = `${baseUrl}/openclaw.ui-hints.json`;
   liveManifest.artifacts.validator.url = `${baseUrl}/openclaw.validator.mjs`;

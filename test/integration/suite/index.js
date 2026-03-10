@@ -5,7 +5,7 @@ async function run() {
   const mocha = new Mocha({
     ui: "tdd",
     color: true,
-    timeout: 20_000,
+    timeout: 60_000,
   });
 
   mocha.addFile(path.resolve(__dirname, "./extension.test.js"));

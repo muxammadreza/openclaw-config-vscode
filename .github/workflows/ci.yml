@@ -32,6 +32,9 @@ jobs:
       - name: Compile
         run: pnpm compile
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Unit tests
         run: pnpm test:unit
 
@@ -59,6 +62,9 @@ jobs:
 
       - name: Compile
         run: pnpm compile
+
+      - name: Lint
+        run: pnpm lint
 
       - name: Integration tests
         run: xvfb-run -a pnpm test:integration
