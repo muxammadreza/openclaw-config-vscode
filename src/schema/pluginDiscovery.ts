@@ -160,6 +160,7 @@ async function hydrateInstalledPlugin(plugin: DiscoveredPlugin): Promise<Discove
     ...plugin,
     pluginRoot,
     manifestPath,
+    version: plugin.version ?? undefined,
     name: plugin.name ?? getOptionalString(manifest?.name) ?? undefined,
     description: plugin.description ?? getOptionalString(manifest?.description) ?? undefined,
     kind: plugin.kind ?? getOptionalString(manifest?.kind) ?? undefined,
@@ -341,6 +342,7 @@ async function readManifestPlugin(manifestPath: string): Promise<DiscoveredPlugi
 
   return {
     id,
+    version: getOptionalString((manifest as Record<string, unknown> | null)?.version) ?? undefined,
     name: getOptionalString(manifest?.name) ?? undefined,
     description: getOptionalString(manifest?.description) ?? undefined,
     kind: getOptionalString(manifest?.kind) ?? undefined,
@@ -375,6 +377,7 @@ function normalizeCliPlugin(value: unknown): DiscoveredPlugin | null {
 
   return {
     id,
+    version: getOptionalString(plugin.version) ?? undefined,
     name: getOptionalString(plugin.name) ?? undefined,
     description: getOptionalString(plugin.description) ?? undefined,
     kind: getOptionalString(plugin.kind) ?? undefined,

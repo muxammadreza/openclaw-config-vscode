@@ -1,11 +1,14 @@
 import type { ExtensionSettings } from "../extension/settings";
 import type { LocalRuntimeProfileService } from "../runtime/localRuntimeProfile";
+import { computePluginDiscoveryFingerprint, computeResolvedSnapshotCacheKey } from "./fingerprint";
 import { OpenClawGatewaySchemaClient } from "./gatewaySchema";
 import { discoverInstalledPlugins, type PluginDiscoveryResult } from "./pluginDiscovery";
 import { applyPluginOverlays } from "./pluginOverlays";
+import { ResolvedSnapshotStore } from "./resolvedSnapshotStore";
 import type {
   DiscoveredPlugin,
   LocalRuntimeProfile,
+  PersistedResolvedRuntimeSchemaSnapshot,
   ResolvedRuntimeSchemaSnapshot,
   ResolvedSchemaStatus,
   SchemaLookupResult,
@@ -15,6 +18,7 @@ import type {
 } from "./types";
 
 type ArtifactReader = {
+  ensureCached?: (force: boolean) => Promise<unknown>;
   getSchemaText: () => Promise<string>;
   getUiHintsText: () => Promise<string>;
   getStatus: () => Promise<SchemaStatus>;
@@ -27,21 +31,20 @@ type ResolvedArtifactsOptions = {
   output: Pick<{ appendLine(value: string): void }, "appendLine">;
   runtimeProfiles: Pick<LocalRuntimeProfileService, "getProfile">;
   discoverPlugins?: typeof discoverInstalledPlugins;
+  snapshotStore?: Pick<ResolvedSnapshotStore, "load" | "save" | "clear">;
   now?: () => number;
 };
 
 type ResolvedSchemaBundle = {
   snapshot: ResolvedRuntimeSchemaSnapshot;
+  discovery: PluginDiscoveryResult;
   runtime: LocalRuntimeProfile;
   requestedVersion: string;
 };
 
-const BUNDLE_TTL_MS = 5_000;
-const DISCOVERY_TTL_MS = 30_000;
-
 export class ResolvedSchemaService {
-  private bundleCache: { builtAt: number; value: Promise<ResolvedSchemaBundle> } | null = null;
-  private discoveryCache: { builtAt: number; value: Promise<PluginDiscoveryResult> } | null = null;
+  private bundleCache: Promise<ResolvedSchemaBundle> | null = null;
+  private discoveryCache: Promise<PluginDiscoveryResult> | null = null;
   private readonly loggedMessages = new Set<string>();
   private readonly gatewayLookupClient = new OpenClawGatewaySchemaClient({
     timeoutMs: 3_000,
@@ -49,12 +52,33 @@ export class ResolvedSchemaService {
   private readonly gatewayResolutionClient = new OpenClawGatewaySchemaClient({
     timeoutMs: 2_500,
   });
+  private readonly snapshotStore: Pick<ResolvedSnapshotStore, "load" | "save" | "clear"> | null;
 
-  constructor(private readonly options: ResolvedArtifactsOptions) {}
+  constructor(private readonly options: ResolvedArtifactsOptions) {
+    this.snapshotStore = options.snapshotStore ?? null;
+  }
 
   invalidate(): void {
     this.bundleCache = null;
     this.discoveryCache = null;
+  }
+
+  async clearPersistentCache(): Promise<void> {
+    await this.snapshotStore?.clear();
+    this.invalidate();
+  }
+
+  async ensureSnapshot(forceRebuild: boolean): Promise<{ updated: boolean; message: string }> {
+    if (forceRebuild) {
+      await this.clearPersistentCache();
+    }
+    await this.getBundleInternal(forceRebuild);
+    return {
+      updated: forceRebuild,
+      message: forceRebuild
+        ? "Rebuilt resolved OpenClaw schema snapshot."
+        : "Loaded resolved OpenClaw schema snapshot.",
+    };
   }
 
   async getSchemaText(): Promise<string> {
@@ -119,29 +143,25 @@ export class ResolvedSchemaService {
   }
 
   private async getBundle(): Promise<ResolvedSchemaBundle> {
-    const now = (this.options.now ?? (() => Date.now()))();
-    if (this.bundleCache && now - this.bundleCache.builtAt < BUNDLE_TTL_MS) {
-      return this.bundleCache.value;
+    return this.getBundleInternal(false);
+  }
+
+  private async getBundleInternal(forceRebuild: boolean): Promise<ResolvedSchemaBundle> {
+    if (!forceRebuild && this.bundleCache) {
+      return this.bundleCache;
     }
 
-    this.bundleCache = {
-      builtAt: now,
-      value: this.buildBundle(),
-    };
-    return this.bundleCache.value;
+    this.bundleCache = this.buildBundle();
+    return this.bundleCache;
   }
 
   private async getDiscovery(): Promise<PluginDiscoveryResult> {
-    const now = (this.options.now ?? (() => Date.now()))();
-    if (this.discoveryCache && now - this.discoveryCache.builtAt < DISCOVERY_TTL_MS) {
-      return this.discoveryCache.value;
+    if (this.discoveryCache) {
+      return this.discoveryCache;
     }
 
-    this.discoveryCache = {
-      builtAt: now,
-      value: this.buildDiscovery(),
-    };
-    return this.discoveryCache.value;
+    this.discoveryCache = this.buildDiscovery();
+    return this.discoveryCache;
   }
 
   private async buildBundle(): Promise<ResolvedSchemaBundle> {
@@ -150,15 +170,47 @@ export class ResolvedSchemaService {
       commandPath: settings.pluginCommandPath,
       workspaceRoot: this.options.getWorkspaceRoot(),
     });
+    const discovery = await this.getDiscovery();
     const requestedVersion = resolveRequestedSchemaVersion(settings.schemaVersion, runtime.versionTag);
+    const sourceIdentity = [
+      settings.manifestUrl.trim(),
+      requestedVersion,
+      settings.schemaPreferredSource,
+    ].join("|");
+    const pluginFingerprint = computePluginDiscoveryFingerprint(discovery);
+    const cacheKey = computeResolvedSnapshotCacheKey({
+      openclawVersion: runtime.versionTag ?? requestedVersion,
+      pluginFingerprint,
+      sourceIdentity,
+      preferredSource: settings.schemaPreferredSource,
+    });
+    const persisted = await this.snapshotStore?.load(cacheKey);
+    if (persisted) {
+      return {
+        snapshot: persisted.snapshot,
+        discovery: persisted.discovery,
+        runtime,
+        requestedVersion,
+      };
+    }
+
     const snapshot = await this.resolveSchemaSnapshot({
       settings,
       runtime,
+      discovery,
       requestedVersion,
     });
+    await this.snapshotStore?.save(this.toPersistedSnapshot({
+      cacheKey,
+      pluginFingerprint,
+      sourceIdentity,
+      snapshot,
+      discovery,
+    }));
 
     return {
       snapshot,
+      discovery,
       runtime,
       requestedVersion,
     };
@@ -182,6 +234,7 @@ export class ResolvedSchemaService {
   private async resolveSchemaSnapshot(params: {
     settings: ExtensionSettings;
     runtime: LocalRuntimeProfile;
+    discovery: PluginDiscoveryResult;
     requestedVersion: string;
   }): Promise<ResolvedRuntimeSchemaSnapshot> {
     const warnings: string[] = [];
@@ -213,12 +266,12 @@ export class ResolvedSchemaService {
         }
 
         if (candidate === "remote-versioned") {
-          const discovery = await this.getDiscovery();
+          await this.options.artifacts.ensureCached?.(false);
           const [schemaText, uiHintsText] = await Promise.all([
             this.options.artifacts.getSchemaText(),
             this.options.artifacts.getUiHintsText(),
           ]);
-          const overlay = applyPluginOverlays(schemaText, uiHintsText, discovery);
+          const overlay = applyPluginOverlays(schemaText, uiHintsText, params.discovery);
           return {
             schemaText: overlay.schemaText,
             uiHintsText: overlay.uiHintsText,
@@ -228,7 +281,7 @@ export class ResolvedSchemaService {
               gatewaySchema: false,
               gatewaySchemaLookup: false,
               runtimeValidateJson: params.runtime.validatorSupportsJson,
-              pluginListJson: discovery.status.source === "cli",
+              pluginListJson: params.discovery.status.source === "cli",
               remoteVersionedFallback: true,
             },
             warnings,
@@ -264,6 +317,25 @@ export class ResolvedSchemaService {
     }
     this.loggedMessages.add(message);
     this.options.output.appendLine(message);
+  }
+
+  private toPersistedSnapshot(params: {
+    cacheKey: string;
+    pluginFingerprint: string;
+    sourceIdentity: string;
+    snapshot: ResolvedRuntimeSchemaSnapshot;
+    discovery: PluginDiscoveryResult;
+  }): PersistedResolvedRuntimeSchemaSnapshot {
+    return {
+      metadata: {
+        cacheKey: params.cacheKey,
+        pluginFingerprint: params.pluginFingerprint,
+        sourceIdentity: params.sourceIdentity,
+        storedAt: new Date((this.options.now ?? (() => Date.now()))()).toISOString(),
+      },
+      snapshot: params.snapshot,
+      discovery: params.discovery,
+    };
   }
 }
 

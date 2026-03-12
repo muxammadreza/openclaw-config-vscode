@@ -1,14 +1,14 @@
 export { OpenClawCodeActionProvider, registerOpenClawCodeActions } from "./provider";
-export { applyQuickFix, computeQuickFixText, isQuickFixPayload, resolveDuplicateAgentDirPaths } from "./transform";
+export { applyQuickFix } from "./transform";
+export { computeQuickFixText, isQuickFixPayload, resolveDuplicateAgentDirPaths } from "./text";
 export {
   appendPath,
   extractBindingIndex,
   extractUnknownKey,
   findPropertyPathFromRange,
   fullDocumentRange,
-  looksSensitivePath,
   pathExistsInDocument,
   resolvePathFromDiagnosticCode,
-  toEnvVarName,
 } from "./path";
+export { looksSensitivePath, toEnvVarName } from "./secrets";
 export type { CodeActionOptions, OpenClawQuickFixPayload, QuickFixKind } from "./types";

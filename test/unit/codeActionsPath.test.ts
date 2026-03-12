@@ -20,7 +20,7 @@ describe("codeActions path helpers", () => {
   });
 
   it("normalizes env var names from path", async () => {
-    const { toEnvVarName } = await import("../../src/validation/codeActions/path");
+    const { toEnvVarName } = await import("../../src/validation/codeActions/secrets");
 
     assert.equal(toEnvVarName("gateway.apiKey"), "OPENCLAW_GATEWAY_APIKEY");
     assert.equal(toEnvVarName("bindings.0.match.access-token"), "OPENCLAW_BINDINGS_MATCH_ACCESS_TOKEN");

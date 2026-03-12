@@ -74,6 +74,7 @@ export type SchemaCapabilities = {
 
 export type DiscoveredPlugin = {
   id: string;
+  version?: string;
   name?: string;
   description?: string;
   kind?: string;
@@ -191,6 +192,25 @@ export type ResolvedRuntimeSchemaSnapshot = {
   source: SchemaResolutionSource;
   capabilities: SchemaCapabilities;
   warnings: string[];
+};
+
+export type ResolvedSnapshotMetadata = {
+  cacheKey: string;
+  pluginFingerprint: string;
+  sourceIdentity: string;
+  storedAt: string;
+};
+
+export type PersistedResolvedRuntimeSchemaSnapshot = {
+  metadata: ResolvedSnapshotMetadata;
+  snapshot: ResolvedRuntimeSchemaSnapshot;
+  discovery: {
+    plugins: DiscoveredPlugin[];
+    pluginSurfaces: DiscoveredPluginSurface[];
+    channelSurfaces: DiscoveredChannelSurface[];
+    providerSurfaces: DiscoveredProviderSurface[];
+    status: PluginDiscoveryStatus;
+  };
 };
 
 export type DiagnosticFingerprint = string;

@@ -167,31 +167,39 @@ export class SchemaArtifactManager {
   }
 
   async initialize(ttlHours: number): Promise<SchemaSyncResult> {
+    void ttlHours;
     await fs.mkdir(this.cacheRoot, { recursive: true });
     await fs.mkdir(this.cacheLiveRoot, { recursive: true });
-    return this.syncIfNeeded(ttlHours, false);
+    return this.ensureCached(false);
   }
 
   async clearCache(): Promise<void> {
     await fs.rm(this.cacheRoot, { recursive: true, force: true });
   }
 
-  async syncIfNeeded(ttlHours: number, force: boolean): Promise<SchemaSyncResult> {
+  async ensureCached(force: boolean): Promise<SchemaSyncResult> {
     await fs.mkdir(this.cacheRoot, { recursive: true });
-    const currentState = await this.readSyncState();
-    const ttlMs = Math.max(1, ttlHours) * 60 * 60 * 1000;
 
-    if (!force && currentState.lastCheckedAt) {
-      const elapsed = this.now() - Date.parse(currentState.lastCheckedAt);
-      if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed < ttlMs) {
-        return {
-          checked: false,
-          updated: false,
-          source: await this.getActiveSourceSafe(),
-          message: "Skipped schema sync because cache TTL has not expired.",
-        };
-      }
+    if (!force && (await this.hasCompleteArtifactSet(this.cacheLiveRoot))) {
+      return {
+        checked: false,
+        updated: false,
+        source: "cache",
+        message: "Using cached schema artifacts.",
+      };
     }
+
+    const currentState = await this.readSyncState();
+    return this.fetchAndCacheArtifacts(currentState);
+  }
+
+  async syncIfNeeded(ttlHours: number, force: boolean): Promise<SchemaSyncResult> {
+    void ttlHours;
+    return this.ensureCached(force);
+  }
+
+  private async fetchAndCacheArtifacts(currentState: SyncState): Promise<SchemaSyncResult> {
+    await fs.mkdir(this.cacheRoot, { recursive: true });
 
     const manifestSecurity = evaluateUrlSecurity(this.manifestUrl, this.securityPolicy);
     if (!manifestSecurity.allowed) {

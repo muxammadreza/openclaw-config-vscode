@@ -5,10 +5,8 @@ import {
   DEFAULT_MANIFEST_URL,
 } from "../schema/constants";
 import type { SchemaPreferredSource } from "../schema/types";
-import { clampTtlHours } from "../utils";
 
 export type ExtensionSettings = {
-  ttlHours: number;
   strictSecrets: boolean;
   explainOnHover: boolean;
   manifestUrl: string;
@@ -26,7 +24,6 @@ export type ExtensionSettings = {
 export function readSettings(): ExtensionSettings {
   const config = vscode.workspace.getConfiguration("openclawConfig");
 
-  const ttlHours = clampTtlHours(config.get<number>("sync.ttlHours", 6));
   const strictSecrets = config.get<boolean>("integrator.strictSecrets", false);
   const explainOnHover = config.get<boolean>("integrator.explainOnHover", true);
   const manifestUrl =
@@ -58,7 +55,6 @@ export function readSettings(): ExtensionSettings {
   const autoUpdate = config.get<boolean>("updates.autoUpdate", true);
 
   return {
-    ttlHours,
     strictSecrets,
     explainOnHover,
     manifestUrl,

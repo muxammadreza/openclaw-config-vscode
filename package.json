@@ -87,7 +87,8 @@
           "default": 6,
           "minimum": 1,
           "maximum": 168,
-          "description": "Hours to cache remote versioned schema artifacts before checking for an update."
+          "description": "Deprecated no-op. Resolved schema snapshots are now reused until the OpenClaw runtime version or plugin fingerprint changes, or until you run the rebuild command.",
+          "markdownDeprecationMessage": "Deprecated. The extension no longer uses TTL-based schema refresh. Use `OpenClaw: Rebuild Schema and Clear Caches` if you need to force a refresh."
         },
         "openclawConfig.sync.manifestUrl": {
           "type": "string",

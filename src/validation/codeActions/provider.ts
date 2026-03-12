@@ -4,9 +4,9 @@ import {
   extractBindingIndex,
   extractUnknownKey,
   findPropertyPathFromRange,
-  looksSensitivePath,
   resolvePathFromDiagnosticCode,
 } from "./path";
+import { looksSensitivePath } from "./secrets";
 import { DOCUMENT_SELECTOR, type CodeActionOptions, type OpenClawQuickFixPayload } from "./types";
 
 export class OpenClawCodeActionProvider implements vscode.CodeActionProvider {

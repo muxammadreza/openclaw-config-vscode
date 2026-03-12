@@ -7,6 +7,7 @@ import type {
   PluginHintEntry,
   ResolvedDynamicSubfieldEntry,
 } from "./types";
+import { resolveUiHint } from "./uiHints";
 
 type JsonSchemaNode = {
   type?: string | string[];
@@ -246,18 +247,7 @@ function resolveHint(
   hints: UiHintRecord,
   fullPath: string,
 ): { label?: string; help?: string } | undefined {
-  const normalized = normalizePath(fullPath);
-  if (!normalized) {
-    return undefined;
-  }
-  if (hints[normalized]) {
-    return hints[normalized];
-  }
-  const wildcard = normalized.replace(/\.\d+(\.|$)/g, ".*$1");
-  if (hints[wildcard]) {
-    return hints[wildcard];
-  }
-  return undefined;
+  return resolveUiHint(hints, fullPath);
 }
 
 function matchesPathPattern(patternSegments: string[], pathSegments: string[]): boolean {

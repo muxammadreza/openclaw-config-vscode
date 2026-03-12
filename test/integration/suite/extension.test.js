@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { findNodeAtLocation, parseTree } = require("jsonc-parser");
 const vscode = require("vscode");
 
 const EXTENSION_ID = "muxammadreza.openclaw-config-vscode";
@@ -8,6 +9,10 @@ const createdTempDirs = new Set();
 const createdWorkspaceArtifacts = new Set();
 
 suite("OpenClaw Extension Integration", () => {
+  teardown(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
   test("activates and returns schema status", async function () {
     this.timeout(90_000);
     const extension = await ensureActivated();
@@ -62,12 +67,18 @@ suite("OpenClaw Extension Integration", () => {
     assert.notEqual(gatewayOffset, -1);
 
     const hoverStartedAt = Date.now();
+    await vscode.commands.executeCommand(
+      "vscode.executeHoverProvider",
+      sampleDoc.uri,
+      sampleDoc.positionAt(gatewayOffset + 1),
+    );
+    const measuredStartedAt = Date.now();
     const hovers = await vscode.commands.executeCommand(
       "vscode.executeHoverProvider",
       sampleDoc.uri,
       sampleDoc.positionAt(gatewayOffset + 1),
     );
-    const hoverDurationMs = Date.now() - hoverStartedAt;
+    const hoverDurationMs = Date.now() - measuredStartedAt;
     assert.ok(Array.isArray(hovers));
     assert.ok(hovers.length > 0);
     assert.match(flattenHoverText(hovers), /Gateway/i);
@@ -85,6 +96,46 @@ suite("OpenClaw Extension Integration", () => {
     const markdownDoc = vscode.window.activeTextEditor.document;
     assert.match(markdownDoc.getText(), /Gateway/i);
     assert.match(markdownDoc.getText(), /port|mode|bind/i);
+  });
+
+  test("covers every resolved hover hint on a synthetic schema fixture", async function () {
+    this.timeout(240_000);
+    const extension = await ensureActivated();
+    const api = extension.exports;
+    const matrix = await api.getResolvedContractMatrixDebug();
+    const hoverDoc = await writeAndOpenTempConfig("schema-contract-hover", "{\n}\n");
+
+    await vscode.commands.executeCommand("openclawConfig.refreshSchemaNow");
+
+    const hintContracts = matrix.keyContracts.filter((contract) => contract.hint?.label || contract.hint?.help);
+    assert.ok(hintContracts.length > 100, "expected broad hover hint coverage");
+
+    for (const contract of hintContracts) {
+      const config = {};
+      assignPath(config, contract.fullConcretePath, null);
+      await replaceDocumentText(hoverDoc, JSON.stringify(config, null, 2));
+      const offset = findPropertyOffsetByPath(hoverDoc.getText(), contract.fullConcretePath);
+      assert.notEqual(offset, -1, `missing property offset for ${contract.fullConcretePath}`);
+
+      const hovers = await vscode.commands.executeCommand(
+        "vscode.executeHoverProvider",
+        hoverDoc.uri,
+        hoverDoc.positionAt(offset),
+      );
+
+      assert.ok(Array.isArray(hovers) && hovers.length > 0, `missing hover for ${contract.fullConcretePath}`);
+      const hoverText = flattenHoverText(hovers);
+      const expectedFragments = [
+        contract.hint.label,
+        contract.hint.help,
+        contract.key,
+      ].filter(Boolean);
+      assert.match(
+        hoverText,
+        new RegExp(expectedFragments.map((value) => escapeRegExp(value)).join("|"), "i"),
+        `missing hint text for ${contract.fullConcretePath}`,
+      );
+    }
   });
 
   test("provides key and value completion on a sample-derived fixture", async function () {
@@ -166,6 +217,37 @@ suite("OpenClaw Extension Integration", () => {
     assert.ok(valueLabels.includes('"relaxed"'));
   });
 
+  test("covers resolved key and constrained-value completions from the schema contract matrix", async function () {
+    this.timeout(240_000);
+    const extension = await ensureActivated();
+    const api = extension.exports;
+    const matrix = await api.getResolvedContractMatrixDebug();
+    const completionDoc = await writeAndOpenTempConfig("schema-contract-completion", "{\n}\n");
+
+    await vscode.commands.executeCommand("openclawConfig.refreshSchemaNow");
+
+    assert.ok(matrix.keyContracts.length > 200, "expected broad key completion coverage");
+    for (const contract of matrix.keyContracts) {
+      const fixture = buildKeyCompletionFixture(contract.parentConcretePath);
+      await replaceDocumentText(completionDoc, fixture.text);
+      const completion = await getCompletionItems(completionDoc, fixture.offset);
+      const labels = completion.map((item) => normalizeLabel(item.label));
+      assert.ok(labels.includes(contract.key), `missing key completion for ${contract.fullConcretePath}`);
+    }
+
+    assert.ok(matrix.valueContracts.length > 50, "expected broad constrained-value coverage");
+    for (const contract of matrix.valueContracts) {
+      const fixture = buildValueCompletionFixture(contract.parentConcretePath, contract.key);
+      await replaceDocumentText(completionDoc, fixture.text);
+      const completion = await getCompletionItems(completionDoc, fixture.offset);
+      const labels = completion.map((item) => normalizeLabel(item.label));
+      assert.ok(
+        contract.values.some((value) => labels.includes(JSON.stringify(value)) || labels.includes(String(value))),
+        `missing constrained value completion for ${contract.fullConcretePath}`,
+      );
+    }
+  });
+
   test("normalizes a minified sample-derived config", async function () {
     this.timeout(90_000);
     await ensureActivated();
@@ -187,15 +269,23 @@ suite("OpenClaw Extension Integration", () => {
   test("offers and applies quick fixes for unknown keys and cleartext secrets", async function () {
     this.timeout(90_000);
     await ensureActivated();
-    const parsed = JSON.parse(await readSampleText());
-    parsed.gateway = parsed.gateway ?? {};
-    parsed.gateway.ghostSetting = true;
-    const doc = await writeAndOpenTempConfig("quick-fix", JSON.stringify(parsed, null, 2));
+    const unknownDoc = await writeAndOpenTempConfig(
+      "quick-fix-unknown",
+      JSON.stringify(
+        {
+          gateway: {
+            ghostSetting: true,
+          },
+        },
+        null,
+        2,
+      ),
+    );
 
     await vscode.commands.executeCommand("openclawConfig.refreshSchemaNow");
-    await waitForSettledDiagnostics(doc.uri, 2_000);
+    await waitForSettledDiagnostics(unknownDoc.uri, 2_000);
 
-    let diagnostics = await waitForDiagnostics(doc.uri, (items) =>
+    let diagnostics = await waitForDiagnostics(unknownDoc.uri, (items) =>
       items.some((item) =>
         item.source === "openclaw-schema" &&
         /unknown|not allowed|additional properties/i.test(item.message),
@@ -207,15 +297,37 @@ suite("OpenClaw Extension Integration", () => {
     );
     assert.ok(unknownDiagnostic, "missing schema diagnostic for unknown key");
 
-    const unknownActions = await getCodeActions(doc.uri, unknownDiagnostic.range);
-    const removeUnknown = unknownActions.find((item) => item.title === 'Remove unknown key "ghostSetting"');
+    const unknownActions = await getCodeActions(unknownDoc.uri, unknownDiagnostic.range);
+    const removeUnknown = unknownActions.find((item) =>
+      item.title === 'Remove unknown key "ghostSetting"' &&
+      item.command?.command === "openclawConfig.applyQuickFix",
+    );
     assert.ok(removeUnknown, "missing remove unknown key action");
     await executeCodeAction(removeUnknown);
 
-    await waitFor(async () => !(await fs.readFile(doc.uri.fsPath, "utf8")).includes("ghostSetting"), 20_000);
+    await waitFor(async () => {
+      const latest = await vscode.workspace.openTextDocument(unknownDoc.uri);
+      return !latest.getText().includes("ghostSetting");
+    }, 20_000);
+
+    const secretDoc = await writeAndOpenTempConfig(
+      "quick-fix-secret",
+      JSON.stringify(
+        {
+          gateway: {
+            auth: {
+              mode: "token",
+              token: "plain-text-secret",
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
 
     await vscode.commands.executeCommand("openclawConfig.refreshSchemaNow");
-    diagnostics = await waitForDiagnostics(doc.uri, (items) =>
+    diagnostics = await waitForDiagnostics(secretDoc.uri, (items) =>
       items.some((item) =>
         item.source === "openclaw-advisory" &&
         String(item.code ?? "").includes("gateway.auth.token"),
@@ -227,17 +339,79 @@ suite("OpenClaw Extension Integration", () => {
     );
     assert.ok(secretDiagnostic, "missing advisory diagnostic for gateway.auth.token");
 
-    const secretActions = await getCodeActions(doc.uri, secretDiagnostic.range);
+    const secretActions = await getCodeActions(secretDoc.uri, secretDiagnostic.range);
     const replaceSecret = secretActions.find((item) =>
-      item.title === "Replace secret with ${env:...}",
+      item.title === "Replace secret with ${env:...}" &&
+      item.command?.command === "openclawConfig.applyQuickFix",
     );
     assert.ok(replaceSecret, "missing replace secret quick fix");
     await executeCodeAction(replaceSecret);
 
     await waitFor(async () => {
-      const nextText = await fs.readFile(doc.uri.fsPath, "utf8");
-      return nextText.includes("${env:GATEWAY_AUTH_TOKEN}");
+      const latest = await vscode.workspace.openTextDocument(secretDoc.uri);
+      return latest.getText().includes("${env:OPENCLAW_GATEWAY_AUTH_TOKEN}");
     }, 20_000);
+  });
+
+  test("covers representative strict-object and sensitive-path diagnostics across the resolved schema contract", async function () {
+    this.timeout(240_000);
+    const extension = await ensureActivated();
+    const api = extension.exports;
+    const matrix = await api.getResolvedContractMatrixDebug();
+    const diagnosticDoc = await writeAndOpenTempConfig("schema-contract-diagnostics", "{\n}\n");
+
+    await vscode.commands.executeCommand("openclawConfig.refreshSchemaNow");
+
+    assert.ok(matrix.strictObjectContracts.length > 20, "expected strict object coverage");
+    const strictContracts = sampleContracts(matrix.strictObjectContracts, 12);
+    for (const [index, contract] of strictContracts.entries()) {
+      const config = {};
+      const unknownKey = `${contract.unknownKey}${index}`;
+      assignPath(config, `${contract.path}.${unknownKey}`, true);
+      await replaceDocumentText(diagnosticDoc, JSON.stringify(config, null, 2));
+      await waitForSettledDiagnostics(diagnosticDoc.uri, 500);
+      const diagnostics = await waitForDiagnostics(diagnosticDoc.uri, (items) =>
+        items.some((item) =>
+          item.source === "openclaw-schema" &&
+          item.message.includes(unknownKey),
+        ),
+      );
+      const schemaDiagnostic = diagnostics.find((item) =>
+        item.source === "openclaw-schema" &&
+        item.message.includes(unknownKey),
+      );
+      assert.ok(schemaDiagnostic, `missing unknown-key diagnostic for ${contract.path}`);
+      const actions = await getCodeActions(diagnosticDoc.uri, schemaDiagnostic.range);
+      assert.ok(
+        actions.some((item) => item.title === `Remove unknown key "${unknownKey}"`),
+        `missing unknown-key quick fix for ${contract.path}`,
+      );
+    }
+
+    assert.ok(matrix.sensitiveContracts.length > 10, "expected sensitive path coverage");
+    const sensitiveContracts = sampleContracts(matrix.sensitiveContracts, 12);
+    for (const contract of sensitiveContracts) {
+      const config = {};
+      assignPath(config, contract.path, "plain-text-secret");
+      await replaceDocumentText(diagnosticDoc, JSON.stringify(config, null, 2));
+      await waitForSettledDiagnostics(diagnosticDoc.uri, 500);
+      const diagnostics = await waitForDiagnostics(diagnosticDoc.uri, (items) =>
+        items.some((item) =>
+          item.source === "openclaw-advisory" &&
+          String(item.code ?? "").includes(contract.path),
+        ),
+      );
+      const advisoryDiagnostic = diagnostics.find((item) =>
+        item.source === "openclaw-advisory" &&
+        String(item.code ?? "").includes(contract.path),
+      );
+      assert.ok(advisoryDiagnostic, `missing secret advisory for ${contract.path}`);
+      const actions = await getCodeActions(diagnosticDoc.uri, advisoryDiagnostic.range);
+      assert.ok(
+        actions.some((item) => item.title === "Replace secret with ${env:...}"),
+        `missing secret quick fix for ${contract.path}`,
+      );
+    }
   });
 
   test("rebuilds schema, clears stale caches, and works through remote fallback against the sample config", async function () {
@@ -351,6 +525,29 @@ async function waitForCompletionItems(document, offset, predicate) {
   }, 45_000);
 }
 
+async function getCompletionItems(document, offset) {
+  return waitFor(async () => {
+    const completion = await vscode.commands.executeCommand(
+      "vscode.executeCompletionItemProvider",
+      document.uri,
+      document.positionAt(offset),
+    );
+    return completion && Array.isArray(completion.items) && completion.items.length > 0
+      ? completion.items
+      : false;
+  }, 10_000);
+}
+
+async function replaceDocumentText(document, text) {
+  const editor = await vscode.window.showTextDocument(document, { preview: false });
+  const fullRange = new vscode.Range(
+    document.positionAt(0),
+    document.positionAt(document.getText().length),
+  );
+  await editor.edit((builder) => builder.replace(fullRange, text));
+  await waitFor(() => document.getText() === text, 10_000);
+}
+
 async function waitForSettledDiagnostics(uri, stableForMs) {
   let lastFingerprint = "";
   let stableSince = Date.now();
@@ -432,6 +629,146 @@ function withMarker(input, marker) {
 
 function normalizeLabel(label) {
   return typeof label === "string" ? label : label?.label ?? "";
+}
+
+function buildKeyCompletionFixture(parentConcretePath) {
+  return buildCompletionFixture(parentConcretePath, "__KEY_MARKER__", "key");
+}
+
+function buildValueCompletionFixture(parentConcretePath, key) {
+  return buildCompletionFixture(parentConcretePath, "__VALUE_MARKER__", "value", key);
+}
+
+function buildCompletionFixture(parentConcretePath, marker, mode, keyName) {
+  const text = wrapAsJson(buildNestedStructure(toSegments(parentConcretePath), marker, mode, keyName));
+  const offset = text.indexOf(marker);
+  assert.notEqual(offset, -1, `Missing marker: ${marker} for ${parentConcretePath}`);
+  return {
+    text: text.replace(marker, ""),
+    offset,
+  };
+}
+
+function wrapAsJson(body) {
+  return `{\n${indentBlock(body, 1)}\n}`;
+}
+
+function buildNestedStructure(segments, marker, mode, keyName) {
+  if (segments.length === 0) {
+    return mode === "value" ? `"${keyName}": ${marker}` : marker;
+  }
+
+  const [head, ...tail] = segments;
+  if (isArrayIndex(head)) {
+    const nested = buildNestedStructure(tail, marker, mode, keyName);
+    const value =
+      tail.length === 0
+        ? `{\n${indentBlock(nested, 1)}\n}`
+        : isArrayIndex(tail[0])
+          ? nested
+          : `{\n${indentBlock(nested, 1)}\n}`;
+    return `[\n${indentBlock(value, 1)}\n]`;
+  }
+
+  const nested = buildNestedStructure(tail, marker, mode, keyName);
+  const value =
+    tail.length === 0
+      ? `{\n${indentBlock(nested, 1)}\n}`
+      : isArrayIndex(tail[0])
+        ? nested
+        : `{\n${indentBlock(nested, 1)}\n}`;
+  return `"${head}": ${value}`;
+}
+
+function toSegments(pathExpression) {
+  return pathExpression
+    .split(".")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function isArrayIndex(value) {
+  return /^\d+$/.test(value ?? "");
+}
+
+function indentBlock(value, level) {
+  const prefix = "  ".repeat(level);
+  return value
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
+}
+
+function findPropertyOffsetByPath(text, pathExpression) {
+  const root = parseTree(text);
+  if (!root) {
+    return -1;
+  }
+  const node = findNodeAtLocation(root, parseIssuePath(pathExpression));
+  const propertyNode = node?.parent?.type === "property" ? node.parent : null;
+  const keyNode = propertyNode?.children?.[0];
+  if (!keyNode || typeof keyNode.offset !== "number") {
+    return -1;
+  }
+  return keyNode.offset + 1;
+}
+
+function parseIssuePath(pathExpression) {
+  return pathExpression
+    .split(".")
+    .filter(Boolean)
+    .map((segment) => (/^\d+$/.test(segment) ? Number(segment) : segment));
+}
+
+function assignPath(root, pathExpression, value) {
+  let current = root;
+  const segments = pathExpression.split(".").filter(Boolean);
+
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index];
+    const isLast = index === segments.length - 1;
+    const nextSegment = segments[index + 1];
+
+    if (isArrayIndex(segment)) {
+      assert.ok(Array.isArray(current), `Invalid array path placement: ${pathExpression}`);
+      const targetIndex = Number(segment);
+      if (isLast) {
+        current[targetIndex] = value;
+        continue;
+      }
+      current[targetIndex] ??= isArrayIndex(nextSegment) ? [] : {};
+      current = current[targetIndex];
+      continue;
+    }
+
+    if (isLast) {
+      current[segment] = value;
+      continue;
+    }
+    current[segment] ??= isArrayIndex(nextSegment) ? [] : {};
+    current = current[segment];
+  }
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sampleContracts(contracts, maxItems) {
+  if (contracts.length <= maxItems) {
+    return [...contracts];
+  }
+  const picks = [];
+  const seen = new Set();
+  for (let index = 0; index < maxItems; index += 1) {
+    const targetIndex = Math.floor((index * (contracts.length - 1)) / Math.max(1, maxItems - 1));
+    if (seen.has(targetIndex)) {
+      continue;
+    }
+    seen.add(targetIndex);
+    picks.push(contracts[targetIndex]);
+  }
+  return picks;
 }
 
 async function pathExists(targetPath) {

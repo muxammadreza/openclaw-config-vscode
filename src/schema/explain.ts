@@ -1,5 +1,6 @@
 import { findNodeAtOffset, getNodePath, parseTree, type Node } from "jsonc-parser";
 import { resolveDynamicSubfields } from "./dynamicSubfields";
+import { resolveUiHint } from "./uiHints";
 import type { DynamicSubfieldCatalog, SchemaLookupResult } from "./types";
 
 type UiHintRecord = Record<string, { label?: string; help?: string }>;
@@ -39,7 +40,7 @@ export function buildFieldExplainMarkdown(
 ): string {
   const normalized = normalizePath(path);
   const hints = parseUiHints(uiHintsText);
-  const hint = lookup?.hint ?? resolveHint(hints, normalized);
+  const hint = lookup?.hint ?? resolveUiHint(hints, normalized);
   const subfields = lookup?.children.map((child) => ({
     key: child.key,
     description: child.hint?.help ?? child.hint?.label ?? describeLookupChild(child.type),
@@ -94,20 +95,6 @@ function parseUiHints(raw: string): UiHintRecord {
   } catch {
     return {};
   }
-}
-
-function resolveHint(
-  hints: UiHintRecord,
-  path: string,
-): { label?: string; help?: string } | undefined {
-  if (!path) {
-    return undefined;
-  }
-  if (hints[path]) {
-    return hints[path];
-  }
-  const wildcard = path.replace(/\.\d+(\.|$)/g, ".*$1");
-  return hints[wildcard];
 }
 
 function normalizePath(value: string): string {

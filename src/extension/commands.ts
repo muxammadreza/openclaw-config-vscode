@@ -36,7 +36,7 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
   options.context.subscriptions.push(
     vscode.commands.registerCommand("openclawConfig.refreshSchemaNow", async () => {
       const result = await options.syncAndRefresh(true);
-      void vscode.window.showInformationMessage("OpenClaw schema refresh completed.");
+      void vscode.window.showInformationMessage("OpenClaw cached schema reloaded.");
       return result;
     }),
     vscode.commands.registerCommand("openclawConfig.rebuildSchema", async () => {

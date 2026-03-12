@@ -115,7 +115,6 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       const settingsChanged =
-        event.affectsConfiguration("openclawConfig.sync.ttlHours") ||
         event.affectsConfiguration("openclawConfig.sync.manifestUrl") ||
         event.affectsConfiguration("openclawConfig.sync.allowedHosts") ||
         event.affectsConfiguration("openclawConfig.sync.allowedRepositories") ||
