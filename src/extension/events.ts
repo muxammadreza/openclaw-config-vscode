@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { OPENCLAW_DOCUMENT_SELECTOR } from "../extension/documentSelector";
 import { OpenClawJsonLanguageService } from "../language/jsonLanguageService";
 import { buildFieldExplainMarkdown, findPathAtOffset } from "../schema/explain";
-import type { DynamicSubfieldCatalog } from "../schema/types";
+import type { DynamicSubfieldCatalog, SchemaLookupResult } from "../schema/types";
 import type { LocalRuntimeProfileService } from "../runtime/localRuntimeProfile";
 import { isOpenClawConfigDocument } from "../utils";
 import type { OpenClawIntegratorDiagnostics } from "../validation/integratorDiagnostics";
@@ -15,6 +15,7 @@ type EventRegistrationOptions = {
   context: vscode.ExtensionContext;
   artifacts: {
     getUiHintsText: () => Promise<string>;
+    getSchemaLookup?: (pathExpression: string) => Promise<SchemaLookupResult | null>;
   };
   jsonLanguageService: Pick<OpenClawJsonLanguageService, "clear" | "revalidateAll">;
   runtimeValidator: Pick<OpenClawRuntimeValidatorDiagnostics, "clear" | "revalidateAll">;
@@ -36,14 +37,14 @@ type EventRegistrationOptions = {
   getDiscoveryResult: () => Promise<
     Pick<
       import("../schema/pluginDiscovery").PluginDiscoveryResult,
-      "plugins" | "channelSurfaces" | "providerSurfaces"
+      "plugins" | "channelSurfaces" | "providerSurfaces" | "status"
     >
   >;
   readSettings: () => ExtensionSettings;
   isInitialized: () => boolean;
   getCatalog: () => Promise<DynamicSubfieldCatalog | null>;
   invalidateCatalog: () => void;
-  syncAndRefresh: (force: boolean) => Promise<void>;
+  syncAndRefresh: (force: boolean) => Promise<unknown>;
 };
 
 export function registerOpenClawEvents(options: EventRegistrationOptions): void {
@@ -64,15 +65,15 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
 
   options.context.subscriptions.push(
     vscode.languages.registerHoverProvider(OPENCLAW_DOCUMENT_SELECTOR, {
-      provideHover: async (document, position) => {
+      provideHover: async (document, position, token) => {
         if (!isOpenClawConfigDocument(document)) {
           return null;
         }
         if (!options.readSettings().explainOnHover) {
           return null;
         }
-        const catalog = await options.getCatalog();
-        if (!catalog) {
+        const catalog = await withTimeout(options.getCatalog(), 5_000);
+        if (!catalog || token.isCancellationRequested) {
           return null;
         }
 
@@ -80,12 +81,15 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
         if (pathAtCursor === null) {
           return null;
         }
-
         const markdown = buildFieldExplainMarkdown(
           pathAtCursor,
           catalog,
-          await options.artifacts.getUiHintsText(),
+          (await withTimeout(options.artifacts.getUiHintsText(), 1_000)) ?? "{}",
+          null,
         );
+        if (token.isCancellationRequested) {
+          return null;
+        }
 
         return new vscode.Hover(new vscode.MarkdownString(markdown));
       },
@@ -115,15 +119,14 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
         event.affectsConfiguration("openclawConfig.sync.manifestUrl") ||
         event.affectsConfiguration("openclawConfig.sync.allowedHosts") ||
         event.affectsConfiguration("openclawConfig.sync.allowedRepositories") ||
-        event.affectsConfiguration("openclawConfig.plugins.commandPath") ||
-        event.affectsConfiguration("openclawConfig.plugins.codeTraversal");
+        event.affectsConfiguration("openclawConfig.schema.preferredSource") ||
+        event.affectsConfiguration("openclawConfig.plugins.commandPath");
 
       const policyOrCatalogChanged =
         settingsChanged ||
         event.affectsConfiguration("openclawConfig.plugins.metadataUrl") ||
         event.affectsConfiguration("openclawConfig.plugins.metadataLocalPath") ||
-        event.affectsConfiguration("openclawConfig.plugins.commandPath") ||
-        event.affectsConfiguration("openclawConfig.plugins.codeTraversal");
+        event.affectsConfiguration("openclawConfig.plugins.commandPath");
 
       const settings = options.readSettings();
       options.runtimeProfiles.invalidate();
@@ -180,4 +183,11 @@ export function registerOpenClawEvents(options: EventRegistrationOptions): void 
       clearAllPendingValidations(pendingValidations);
     },
   });
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  const timeout = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), timeoutMs);
+  });
+  return Promise.race([promise, timeout]);
 }

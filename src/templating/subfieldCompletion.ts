@@ -41,7 +41,7 @@ class OpenClawSubfieldCompletionProvider implements vscode.CompletionItemProvide
       return [];
     }
 
-    const catalog = await this.options.getCatalog();
+    const catalog = await withTimeout(this.options.getCatalog(), 5_000);
     if (!catalog) {
       return [];
     }
@@ -71,6 +71,13 @@ class OpenClawSubfieldCompletionProvider implements vscode.CompletionItemProvide
     const suggestions = buildValueCompletionSuggestions(activeEntry);
     return suggestions.map((suggestion) => toCompletionItem(suggestion));
   }
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  const timeout = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), timeoutMs);
+  });
+  return Promise.race([promise, timeout]);
 }
 
 function toCompletionItem(suggestion: CompletionSuggestion): vscode.CompletionItem {

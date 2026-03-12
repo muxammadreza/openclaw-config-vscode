@@ -275,16 +275,22 @@ function applyPluginIdConstraints(
     .filter((plugin) => plugin.kind === "context-engine")
     .map((plugin) => plugin.id)
     .sort((left, right) => left.localeCompare(right));
+  const hasIncompleteKindMetadata = plugins.some((plugin) => !plugin.kind?.trim());
 
   if (slotProperties) {
     const memorySchema = ensureBranchSchema(slotProperties, "memory");
     memorySchema.type = "string";
-    memorySchema.enum = memoryIds.length > 0 ? ["none", ...memoryIds] : ["none"];
+    memorySchema.enum =
+      memoryIds.length > 0 && !hasIncompleteKindMetadata
+        ? ["none", ...memoryIds]
+        : ["none", ...pluginIds];
 
     const contextSchema = ensureBranchSchema(slotProperties, "contextEngine");
     contextSchema.type = "string";
     contextSchema.enum =
-      contextEngineIds.length > 0 ? ["legacy", ...contextEngineIds] : ["legacy"];
+      contextEngineIds.length > 0 && !hasIncompleteKindMetadata
+        ? ["legacy", ...contextEngineIds]
+        : ["legacy", ...pluginIds];
   }
 
   return next;

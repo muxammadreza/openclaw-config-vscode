@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import type * as vscode from "vscode";
 import {
   ARTIFACT_FILE_NAMES,
@@ -13,7 +12,6 @@ import { evaluateUrlSecurity, normalizePolicyInput } from "./security";
 import type {
   ArtifactSource,
   ManifestSecurityPolicy,
-  OpenClawZodValidator,
   SchemaManifestV1,
   SchemaStatus,
   SchemaSyncResult,
@@ -27,10 +25,9 @@ type SyncState = {
 };
 
 type ArtifactManagerOptions = {
-  context: Pick<vscode.ExtensionContext, "extensionPath" | "globalStorageUri">;
+  context: Pick<vscode.ExtensionContext, "globalStorageUri">;
   manifestUrl?: string;
   fetchFn?: typeof fetch;
-  importModuleFn?: (moduleUrl: string) => Promise<unknown>;
   now?: () => number;
   securityPolicy?: Partial<ManifestSecurityPolicy>;
 };
@@ -64,11 +61,7 @@ export function isSchemaManifestV1(value: unknown): value is SchemaManifestV1 {
   if (!artifacts || typeof artifacts !== "object") {
     return false;
   }
-  return (
-    isArtifactRecord(artifacts.schema) &&
-    isArtifactRecord(artifacts.uiHints) &&
-    isArtifactRecord(artifacts.validator)
-  );
+  return isArtifactRecord(artifacts.schema) && isArtifactRecord(artifacts.uiHints);
 }
 
 function isArtifactRecord(value: unknown): value is SchemaManifestV1["artifacts"]["schema"] {
@@ -130,24 +123,15 @@ function createDefaultPolicy(): ManifestSecurityPolicy {
 }
 
 export class SchemaArtifactManager {
-  private readonly context: Pick<vscode.ExtensionContext, "extensionPath" | "globalStorageUri">;
   private manifestUrl: string;
   private securityPolicy: ManifestSecurityPolicy;
   private readonly fetchFn: typeof fetch;
-  private readonly importModuleFn: (moduleUrl: string) => Promise<unknown>;
   private readonly now: () => number;
-  private readonly bundledRoot: string;
   private readonly cacheRoot: string;
   private readonly cacheLiveRoot: string;
   private readonly syncStatePath: string;
-  private validatorCache: {
-    absolutePath: string;
-    mtimeMs: number;
-    validator: OpenClawZodValidator;
-  } | null = null;
 
   constructor(options: ArtifactManagerOptions) {
-    this.context = options.context;
     this.manifestUrl = normalizeManifestUrl(options.manifestUrl ?? DEFAULT_MANIFEST_URL);
     this.securityPolicy = normalizePolicyInput({
       ...createDefaultPolicy(),
@@ -157,10 +141,8 @@ export class SchemaArtifactManager {
         options.securityPolicy?.allowedRepositories ?? [...DEFAULT_ALLOWED_REPOSITORIES],
     });
     this.fetchFn = options.fetchFn ?? fetch;
-    this.importModuleFn = options.importModuleFn ?? importEsmModule;
     this.now = options.now ?? (() => Date.now());
-    this.bundledRoot = path.join(this.context.extensionPath, "schemas", "live");
-    this.cacheRoot = path.join(this.context.globalStorageUri.fsPath, "schema-cache");
+    this.cacheRoot = path.join(options.context.globalStorageUri.fsPath, "schema-cache");
     this.cacheLiveRoot = path.join(this.cacheRoot, "live");
     this.syncStatePath = path.join(this.cacheRoot, "sync-state.json");
   }
@@ -190,18 +172,22 @@ export class SchemaArtifactManager {
     return this.syncIfNeeded(ttlHours, false);
   }
 
+  async clearCache(): Promise<void> {
+    await fs.rm(this.cacheRoot, { recursive: true, force: true });
+  }
+
   async syncIfNeeded(ttlHours: number, force: boolean): Promise<SchemaSyncResult> {
+    await fs.mkdir(this.cacheRoot, { recursive: true });
     const currentState = await this.readSyncState();
     const ttlMs = Math.max(1, ttlHours) * 60 * 60 * 1000;
 
     if (!force && currentState.lastCheckedAt) {
       const elapsed = this.now() - Date.parse(currentState.lastCheckedAt);
       if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed < ttlMs) {
-        const active = await this.resolveActiveRoot();
         return {
           checked: false,
           updated: false,
-          source: active.source,
+          source: await this.getActiveSourceSafe(),
           message: "Skipped schema sync because cache TTL has not expired.",
         };
       }
@@ -215,11 +201,10 @@ export class SchemaArtifactManager {
         lastCheckedAt: new Date(this.now()).toISOString(),
         lastError: message,
       });
-      const active = await this.resolveActiveRoot();
       return {
         checked: true,
         updated: false,
-        source: active.source,
+        source: await this.getActiveSourceSafe(),
         message,
       };
     }
@@ -238,11 +223,10 @@ export class SchemaArtifactManager {
         lastCheckedAt: new Date(this.now()).toISOString(),
         lastError: toErrorMessage(error),
       });
-      const active = await this.resolveActiveRoot();
       return {
         checked: true,
         updated: false,
-        source: active.source,
+        source: await this.getActiveSourceSafe(),
         message: `Schema sync failed: ${toErrorMessage(error)}`,
       };
     }
@@ -256,11 +240,10 @@ export class SchemaArtifactManager {
         lastCheckedAt: new Date(this.now()).toISOString(),
         lastError: message,
       });
-      const active = await this.resolveActiveRoot();
       return {
         checked: true,
         updated: false,
-        source: active.source,
+        source: await this.getActiveSourceSafe(),
         message,
       };
     }
@@ -305,11 +288,10 @@ export class SchemaArtifactManager {
         lastCheckedAt: new Date(this.now()).toISOString(),
         lastError: toErrorMessage(error),
       });
-      const active = await this.resolveActiveRoot();
       return {
         checked: true,
         updated: false,
-        source: active.source,
+        source: await this.getActiveSourceSafe(),
         message: `Schema update rejected: ${toErrorMessage(error)}`,
       };
     }
@@ -317,66 +299,25 @@ export class SchemaArtifactManager {
 
   async getSchemaText(): Promise<string> {
     const active = await this.resolveActiveRoot();
-    const filePath = path.join(active.dir, ARTIFACT_FILE_NAMES.schema);
-    return fs.readFile(filePath, "utf8");
+    return fs.readFile(path.join(active.dir, ARTIFACT_FILE_NAMES.schema), "utf8");
   }
 
   async getUiHintsText(): Promise<string> {
     const active = await this.resolveActiveRoot();
-    const filePath = path.join(active.dir, ARTIFACT_FILE_NAMES.uiHints);
-    return fs.readFile(filePath, "utf8");
-  }
-
-  async getValidator(): Promise<OpenClawZodValidator | null> {
-    const validatorPath = path.join(this.bundledRoot, ARTIFACT_FILE_NAMES.validator);
-    if (!(await exists(validatorPath))) {
-      return null;
-    }
-
-    const stat = await fs.stat(validatorPath);
-    if (
-      this.validatorCache &&
-      this.validatorCache.absolutePath === validatorPath &&
-      this.validatorCache.mtimeMs === stat.mtimeMs
-    ) {
-      return this.validatorCache.validator;
-    }
-
-    const importUrl = `${pathToFileURL(validatorPath).href}?v=${stat.mtimeMs}`;
-    const loaded = (await this.importModuleFn(importUrl)) as Partial<OpenClawZodValidator>;
-    if (typeof loaded.validate !== "function") {
-      return null;
-    }
-
-    const validator: OpenClawZodValidator = {
-      validate: loaded.validate,
-    };
-
-    this.validatorCache = {
-      absolutePath: validatorPath,
-      mtimeMs: stat.mtimeMs,
-      validator,
-    };
-
-    return validator;
+    return fs.readFile(path.join(active.dir, ARTIFACT_FILE_NAMES.uiHints), "utf8");
   }
 
   async getActiveSource(): Promise<ArtifactSource> {
-    const active = await this.resolveActiveRoot();
-    return active.source;
+    return (await this.resolveActiveRoot()).source;
   }
 
   async getStatus(): Promise<SchemaStatus> {
-    const [syncState, active] = await Promise.all([this.readSyncState(), this.resolveActiveRoot()]);
-    const activeManifest = await this.readManifestFromRoot(active.dir);
-
-    const manifestEvaluation = evaluateUrlSecurity(this.manifestUrl, this.securityPolicy);
-    const artifactEvaluations = activeManifest
-      ? this.evaluateArtifactUrls(activeManifest)
-      : [];
+    const syncState = await this.readSyncState();
+    const active = await this.resolveActiveRoot().catch(() => null);
+    const activeManifest = await this.readManifestFromRoot(active?.dir);
 
     return {
-      source: active.source,
+      source: active?.source ?? "missing",
       manifestUrl: this.manifestUrl,
       openclawCommit: activeManifest?.openclawCommit,
       generatedAt: activeManifest?.generatedAt,
@@ -384,8 +325,8 @@ export class SchemaArtifactManager {
       lastSuccessfulSyncAt: syncState.lastSuccessfulSyncAt,
       lastError: syncState.lastError,
       policy: {
-        manifest: manifestEvaluation,
-        artifacts: artifactEvaluations,
+        manifest: evaluateUrlSecurity(this.manifestUrl, this.securityPolicy),
+        artifacts: activeManifest ? this.evaluateArtifactUrls(activeManifest) : [],
       },
     };
   }
@@ -394,15 +335,13 @@ export class SchemaArtifactManager {
     return [
       evaluateUrlSecurity(manifest.artifacts.schema.url, this.securityPolicy),
       evaluateUrlSecurity(manifest.artifacts.uiHints.url, this.securityPolicy),
-      evaluateUrlSecurity(manifest.artifacts.validator.url, this.securityPolicy),
     ];
   }
 
   private async downloadAndCommitManifest(manifest: SchemaManifestV1): Promise<void> {
-    const downloadedArtifacts = await Promise.all([
+    const [schemaText, uiHintsText] = await Promise.all([
       this.fetchVerifiedArtifact(manifest.artifacts.schema.url, manifest.artifacts.schema.sha256),
       this.fetchVerifiedArtifact(manifest.artifacts.uiHints.url, manifest.artifacts.uiHints.sha256),
-      this.fetchVerifiedArtifact(manifest.artifacts.validator.url, manifest.artifacts.validator.sha256),
     ]);
 
     const tempDir = path.join(
@@ -411,20 +350,17 @@ export class SchemaArtifactManager {
     );
 
     await fs.mkdir(tempDir, { recursive: true });
-    await fs.writeFile(path.join(tempDir, ARTIFACT_FILE_NAMES.schema), downloadedArtifacts[0], "utf8");
-    await fs.writeFile(path.join(tempDir, ARTIFACT_FILE_NAMES.uiHints), downloadedArtifacts[1], "utf8");
-    await fs.writeFile(path.join(tempDir, ARTIFACT_FILE_NAMES.validator), downloadedArtifacts[2], "utf8");
+    await fs.writeFile(path.join(tempDir, ARTIFACT_FILE_NAMES.schema), schemaText, "utf8");
+    await fs.writeFile(path.join(tempDir, ARTIFACT_FILE_NAMES.uiHints), uiHintsText, "utf8");
     await writeJsonFile(path.join(tempDir, ARTIFACT_FILE_NAMES.manifest), manifest);
 
     await fs.rm(this.cacheLiveRoot, { recursive: true, force: true });
     await fs.rename(tempDir, this.cacheLiveRoot);
-    this.validatorCache = null;
   }
 
   private async fetchVerifiedArtifact(url: string, expectedSha256: string): Promise<string> {
     const content = await fetchText(this.fetchFn, url);
-    const actualHash = sha256Hex(content);
-    if (actualHash !== expectedSha256) {
+    if (sha256Hex(content) !== expectedSha256) {
       throw new Error(`SHA-256 mismatch for ${url}.`);
     }
     return content;
@@ -434,30 +370,29 @@ export class SchemaArtifactManager {
     return this.readManifestFromRoot(this.cacheLiveRoot);
   }
 
-  private async readManifestFromRoot(root: string): Promise<SchemaManifestV1 | null> {
+  private async readManifestFromRoot(root: string | undefined): Promise<SchemaManifestV1 | null> {
+    if (!root) {
+      return null;
+    }
     const manifestPath = path.join(root, ARTIFACT_FILE_NAMES.manifest);
     if (!(await exists(manifestPath))) {
       return null;
     }
     const parsed = await readJsonFile<unknown>(manifestPath);
-    if (!isSchemaManifestV1(parsed)) {
-      return null;
-    }
-    return parsed;
+    return isSchemaManifestV1(parsed) ? parsed : null;
   }
 
   private async resolveActiveRoot(): Promise<ActiveRoot> {
     if (await this.hasCompleteArtifactSet(this.cacheLiveRoot)) {
       return { dir: this.cacheLiveRoot, source: "cache" };
     }
-    return { dir: this.bundledRoot, source: "bundled" };
+    throw new Error("No remote schema cache is available.");
   }
 
   private async hasCompleteArtifactSet(root: string): Promise<boolean> {
     const required = [
       ARTIFACT_FILE_NAMES.schema,
       ARTIFACT_FILE_NAMES.uiHints,
-      ARTIFACT_FILE_NAMES.validator,
       ARTIFACT_FILE_NAMES.manifest,
     ];
     const checks = await Promise.all(required.map((name) => exists(path.join(root, name))));
@@ -478,12 +413,16 @@ export class SchemaArtifactManager {
   private async writeSyncState(state: SyncState): Promise<void> {
     await writeJsonFile(this.syncStatePath, state);
   }
+
+  private async getActiveSourceSafe(): Promise<ArtifactSource> {
+    return this.getActiveSource().catch(() => "missing");
+  }
 }
 
 function normalizeManifestUrl(manifestUrl: string, schemaVersion?: string): string {
   const trimmed = manifestUrl.trim();
   const rawUrl = trimmed || DEFAULT_MANIFEST_URL;
-  
+
   try {
     const parsedUrl = new URL(rawUrl);
     if (schemaVersion && schemaVersion !== "latest") {
@@ -501,8 +440,3 @@ function toErrorMessage(error: unknown): string {
   }
   return String(error);
 }
-
-const importEsmModule: (moduleUrl: string) => Promise<unknown> = new Function(
-  "moduleUrl",
-  "return import(moduleUrl);",
-) as (moduleUrl: string) => Promise<unknown>;

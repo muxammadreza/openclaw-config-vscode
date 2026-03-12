@@ -169,7 +169,7 @@ function createRemoveInvalidBindingAction(
   document: vscode.TextDocument,
   diagnostic: vscode.Diagnostic,
 ): vscode.CodeAction | null {
-  if (diagnostic.source !== "openclaw-integrator") {
+  if (diagnostic.source !== "openclaw-advisory") {
     return null;
   }
 
@@ -206,7 +206,7 @@ function createSecretEnvRefAction(
   document: vscode.TextDocument,
   diagnostic: vscode.Diagnostic,
 ): vscode.CodeAction | null {
-  if (diagnostic.source !== "openclaw-integrator") {
+  if (diagnostic.source !== "openclaw-advisory") {
     return null;
   }
 

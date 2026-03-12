@@ -9,7 +9,7 @@ export type IntegratorDiagnosticsOptions = {
 };
 
 export class OpenClawIntegratorDiagnostics {
-  private readonly diagnostics = vscode.languages.createDiagnosticCollection("openclaw-integrator");
+  private readonly diagnostics = vscode.languages.createDiagnosticCollection("openclaw-advisory");
 
   dispose(): void {
     this.diagnostics.dispose();
@@ -52,7 +52,7 @@ export class OpenClawIntegratorDiagnostics {
           ? vscode.DiagnosticSeverity.Error
           : vscode.DiagnosticSeverity.Warning,
       );
-      diagnostic.source = "openclaw-integrator";
+      diagnostic.source = "openclaw-advisory";
       diagnostic.code = issue.path || issue.code;
       return diagnostic;
     });

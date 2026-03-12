@@ -13,6 +13,7 @@ export function extractUnknownKey(message: string): string | null {
     /Unrecognized key:\s*"([^"]+)"/i,
     /Property\s+"([^"]+)"\s+is not allowed/i,
     /Property\s+'([^']+)'\s+is not allowed/i,
+    /Property\s+([A-Za-z0-9_.-]+)\s+is not allowed/i,
     /additional propert(?:y|ies)[^"']*["']([^"']+)["']/i,
   ];
 

@@ -1,6 +1,6 @@
 import { findNodeAtOffset, getNodePath, parseTree, type Node } from "jsonc-parser";
 import { resolveDynamicSubfields } from "./dynamicSubfields";
-import type { DynamicSubfieldCatalog } from "./types";
+import type { DynamicSubfieldCatalog, SchemaLookupResult } from "./types";
 
 type UiHintRecord = Record<string, { label?: string; help?: string }>;
 
@@ -35,11 +35,15 @@ export function buildFieldExplainMarkdown(
   path: string,
   catalog: DynamicSubfieldCatalog,
   uiHintsText: string,
+  lookup?: SchemaLookupResult | null,
 ): string {
   const normalized = normalizePath(path);
   const hints = parseUiHints(uiHintsText);
-  const hint = resolveHint(hints, normalized);
-  const subfields = resolveDynamicSubfields(catalog, normalized);
+  const hint = lookup?.hint ?? resolveHint(hints, normalized);
+  const subfields = lookup?.children.map((child) => ({
+    key: child.key,
+    description: child.hint?.help ?? child.hint?.label ?? describeLookupChild(child.type),
+  })) ?? resolveDynamicSubfields(catalog, normalized);
 
   const lines: string[] = [];
   lines.push(`### ${(hint?.label ?? normalized) || "Root Config"}`);
@@ -64,6 +68,13 @@ export function buildFieldExplainMarkdown(
   }
 
   return lines.join("\n");
+}
+
+function describeLookupChild(type: string | string[] | undefined): string | undefined {
+  if (!type) {
+    return undefined;
+  }
+  return Array.isArray(type) ? type.join(" | ") : type;
 }
 
 function findClosestPropertyNode(node: Node): Node | null {

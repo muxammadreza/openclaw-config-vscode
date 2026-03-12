@@ -4,12 +4,11 @@ import {
   DEFAULT_ALLOWED_REPOSITORIES,
   DEFAULT_MANIFEST_URL,
 } from "../schema/constants";
-import type { PluginCodeTraversalMode } from "../schema/types";
+import type { SchemaPreferredSource } from "../schema/types";
 import { clampTtlHours } from "../utils";
 
 export type ExtensionSettings = {
   ttlHours: number;
-  zodShadowEnabled: boolean;
   strictSecrets: boolean;
   explainOnHover: boolean;
   manifestUrl: string;
@@ -18,9 +17,9 @@ export type ExtensionSettings = {
   pluginMetadataUrl: string;
   pluginMetadataLocalPath: string;
   pluginCommandPath: string;
-  pluginCodeTraversal: PluginCodeTraversalMode;
   codeActionsEnabled: boolean;
   schemaVersion: string;
+  schemaPreferredSource: SchemaPreferredSource;
   autoUpdate: boolean;
 };
 
@@ -28,7 +27,6 @@ export function readSettings(): ExtensionSettings {
   const config = vscode.workspace.getConfiguration("openclawConfig");
 
   const ttlHours = clampTtlHours(config.get<number>("sync.ttlHours", 6));
-  const zodShadowEnabled = config.get<boolean>("zodShadow.enabled", true);
   const strictSecrets = config.get<boolean>("integrator.strictSecrets", false);
   const explainOnHover = config.get<boolean>("integrator.explainOnHover", true);
   const manifestUrl =
@@ -50,18 +48,17 @@ export function readSettings(): ExtensionSettings {
       .trim();
   const pluginCommandPath =
     (config.get<string>("plugins.commandPath", "openclaw") || "openclaw").trim() || "openclaw";
-  const pluginCodeTraversal = normalizeTraversalMode(
-    config.get<string>("plugins.codeTraversal", "installed-sources"),
-  );
 
   const codeActionsEnabled = config.get<boolean>("codeActions.enabled", true);
 
   const schemaVersion = config.get<string>("sync.schemaVersion", "latest").trim();
+  const schemaPreferredSource = normalizeSchemaPreferredSource(
+    config.get<string>("schema.preferredSource", "auto"),
+  );
   const autoUpdate = config.get<boolean>("updates.autoUpdate", true);
 
   return {
     ttlHours,
-    zodShadowEnabled,
     strictSecrets,
     explainOnHover,
     manifestUrl,
@@ -70,9 +67,9 @@ export function readSettings(): ExtensionSettings {
     pluginMetadataUrl,
     pluginMetadataLocalPath,
     pluginCommandPath,
-    pluginCodeTraversal,
     codeActionsEnabled,
     schemaVersion,
+    schemaPreferredSource,
     autoUpdate,
   };
 }
@@ -88,12 +85,12 @@ function normalizeStringArray(value: string[] | undefined, fallback: string[]): 
   return normalized.length > 0 ? normalized : [...fallback];
 }
 
-function normalizeTraversalMode(value: string | undefined): PluginCodeTraversalMode {
+function normalizeSchemaPreferredSource(value: string | undefined): SchemaPreferredSource {
   switch ((value || "").trim()) {
-    case "off":
-    case "max-coverage":
-      return value as PluginCodeTraversalMode;
+    case "gateway":
+    case "remote":
+      return value as SchemaPreferredSource;
     default:
-      return "installed-sources";
+      return "auto";
   }
 }

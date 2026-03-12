@@ -5201,7 +5201,7 @@
   },
   "channels.telegram": {
     "label": "Telegram",
-    "help": "Telegram channel provider configuration including auth tokens, retry behavior, and message rendering controls. Use this section to tune bot behavior for Telegram-specific API semantics.",
+    "help": "simplest way to get started — register a bot with @BotFather and get going.",
     "tags": [
       "network",
       "channels"
@@ -6721,6 +6721,1435 @@
     "tags": [
       "security",
       "auth"
+    ]
+  },
+  "plugins.entries.memu-engine": {
+    "label": "memU Agentic Engine",
+    "help": "memU agentic memory layer (SQLModel + Vector) (plugin: memu-engine)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.memu-engine.enabled": {
+    "label": "Enable memU Agentic Engine",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.memu-engine.config": {
+    "label": "memU Agentic Engine Config",
+    "help": "Plugin-defined config payload for memu-engine.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx": {
+    "label": "ACPX Runtime",
+    "help": "ACP runtime backend powered by acpx with configurable command path and version policy. (plugin: acpx)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.enabled": {
+    "label": "Enable ACPX Runtime",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.config": {
+    "label": "ACPX Runtime Config",
+    "help": "Plugin-defined config payload for acpx.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.config.command": {
+    "label": "acpx Command",
+    "help": "Optional path/command override for acpx (for example /home/user/repos/acpx/dist/cli.js). Leave unset to use plugin-local bundled acpx.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.config.expectedVersion": {
+    "label": "Expected acpx Version",
+    "help": "Exact version to enforce (for example 0.1.15) or \"any\" to skip strict version matching.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.config.cwd": {
+    "label": "Default Working Directory",
+    "help": "Default cwd for ACP session operations when not set per session.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.config.permissionMode": {
+    "label": "Permission Mode",
+    "help": "Default acpx permission policy for runtime prompts.",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.acpx.config.nonInteractivePermissions": {
+    "label": "Non-Interactive Permission Policy",
+    "help": "acpx policy when interactive permission prompts are unavailable.",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.acpx.config.strictWindowsCmdWrapper": {
+    "label": "Strict Windows cmd Wrapper",
+    "help": "Enabled by default. On Windows, reject unresolved .cmd/.bat wrappers instead of shell fallback. Disable only for compatibility with non-standard wrappers.",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.config.timeoutSeconds": {
+    "label": "Prompt Timeout Seconds",
+    "help": "Optional acpx timeout for each runtime turn.",
+    "advanced": true,
+    "tags": [
+      "performance",
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.config.queueOwnerTtlSeconds": {
+    "label": "Queue Owner TTL Seconds",
+    "help": "Idle queue-owner TTL for acpx prompt turns. Keep this short in OpenClaw to avoid delayed completion after each turn.",
+    "advanced": true,
+    "tags": [
+      "access",
+      "advanced"
+    ]
+  },
+  "plugins.entries.acpx.config.mcpServers": {
+    "label": "MCP Servers",
+    "help": "Named MCP server definitions to inject into ACPX-backed session bootstrap. Each entry needs a command and can include args and env.",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.bluebubbles": {
+    "label": "@openclaw/bluebubbles",
+    "help": "OpenClaw BlueBubbles channel plugin (plugin: bluebubbles)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.bluebubbles.enabled": {
+    "label": "Enable @openclaw/bluebubbles",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.bluebubbles.config": {
+    "label": "@openclaw/bluebubbles Config",
+    "help": "Plugin-defined config payload for bluebubbles.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.copilot-proxy": {
+    "label": "@openclaw/copilot-proxy",
+    "help": "OpenClaw Copilot Proxy provider plugin (plugin: copilot-proxy)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.copilot-proxy.enabled": {
+    "label": "Enable @openclaw/copilot-proxy",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.copilot-proxy.config": {
+    "label": "@openclaw/copilot-proxy Config",
+    "help": "Plugin-defined config payload for copilot-proxy.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.device-pair": {
+    "label": "Device Pairing",
+    "help": "Generate setup codes and approve device pairing requests. (plugin: device-pair)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.device-pair.enabled": {
+    "label": "Enable Device Pairing",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.device-pair.config": {
+    "label": "Device Pairing Config",
+    "help": "Plugin-defined config payload for device-pair.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.device-pair.config.publicUrl": {
+    "label": "Gateway URL",
+    "help": "Public WebSocket URL used for /pair setup codes (ws/wss or http/https).",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diagnostics-otel": {
+    "label": "@openclaw/diagnostics-otel",
+    "help": "OpenClaw diagnostics OpenTelemetry exporter (plugin: diagnostics-otel)",
+    "tags": [
+      "observability"
+    ]
+  },
+  "plugins.entries.diagnostics-otel.enabled": {
+    "label": "Enable @openclaw/diagnostics-otel",
+    "tags": [
+      "observability"
+    ]
+  },
+  "plugins.entries.diagnostics-otel.config": {
+    "label": "@openclaw/diagnostics-otel Config",
+    "help": "Plugin-defined config payload for diagnostics-otel.",
+    "tags": [
+      "observability"
+    ]
+  },
+  "plugins.entries.diffs": {
+    "label": "Diffs",
+    "help": "Read-only diff viewer and PNG/PDF renderer for agents. (plugin: diffs)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.enabled": {
+    "label": "Enable Diffs",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config": {
+    "label": "Diffs Config",
+    "help": "Plugin-defined config payload for diffs.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.fontFamily": {
+    "label": "Default Font",
+    "help": "Preferred font family name for diff content and headers.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.fontSize": {
+    "label": "Default Font Size",
+    "help": "Base diff font size in pixels.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.lineSpacing": {
+    "label": "Default Line Spacing",
+    "help": "Line-height multiplier applied to diff rows.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.layout": {
+    "label": "Default Layout",
+    "help": "Initial diff layout shown in the viewer.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.showLineNumbers": {
+    "label": "Show Line Numbers",
+    "help": "Show line numbers by default.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.diffIndicators": {
+    "label": "Diff Indicator Style",
+    "help": "Choose added/removed indicators style.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.wordWrap": {
+    "label": "Default Word Wrap",
+    "help": "Wrap long lines by default.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.background": {
+    "label": "Default Background Highlights",
+    "help": "Show added/removed background highlights by default.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.theme": {
+    "label": "Default Theme",
+    "help": "Initial viewer theme.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.fileFormat": {
+    "label": "Default File Format",
+    "help": "Rendered file format for file mode (PNG or PDF).",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.fileQuality": {
+    "label": "Default File Quality",
+    "help": "Quality preset for PNG/PDF rendering.",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.fileScale": {
+    "label": "Default File Scale",
+    "help": "Device scale factor used while rendering file artifacts.",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.fileMaxWidth": {
+    "label": "Default File Max Width",
+    "help": "Maximum file render width in CSS pixels.",
+    "tags": [
+      "performance",
+      "storage"
+    ]
+  },
+  "plugins.entries.diffs.config.defaults.mode": {
+    "label": "Default Output Mode",
+    "help": "Tool default when mode is omitted. Use view for canvas/gateway viewer, file for PNG/PDF, or both.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.diffs.config.security.allowRemoteViewer": {
+    "label": "Allow Remote Viewer",
+    "help": "Allow non-loopback access to diff viewer URLs when the token path is known.",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.discord": {
+    "label": "@openclaw/discord",
+    "help": "OpenClaw Discord channel plugin (plugin: discord)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.discord.enabled": {
+    "label": "Enable @openclaw/discord",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.discord.config": {
+    "label": "@openclaw/discord Config",
+    "help": "Plugin-defined config payload for discord.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.feishu": {
+    "label": "@openclaw/feishu",
+    "help": "OpenClaw Feishu/Lark channel plugin (community maintained by @m1heng) (plugin: feishu)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.feishu.enabled": {
+    "label": "Enable @openclaw/feishu",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.feishu.config": {
+    "label": "@openclaw/feishu Config",
+    "help": "Plugin-defined config payload for feishu.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.google-gemini-cli-auth": {
+    "label": "@openclaw/google-gemini-cli-auth",
+    "help": "OpenClaw Gemini CLI OAuth provider plugin (plugin: google-gemini-cli-auth)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.google-gemini-cli-auth.enabled": {
+    "label": "Enable @openclaw/google-gemini-cli-auth",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.google-gemini-cli-auth.config": {
+    "label": "@openclaw/google-gemini-cli-auth Config",
+    "help": "Plugin-defined config payload for google-gemini-cli-auth.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.googlechat": {
+    "label": "@openclaw/googlechat",
+    "help": "OpenClaw Google Chat channel plugin (plugin: googlechat)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.googlechat.enabled": {
+    "label": "Enable @openclaw/googlechat",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.googlechat.config": {
+    "label": "@openclaw/googlechat Config",
+    "help": "Plugin-defined config payload for googlechat.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.imessage": {
+    "label": "@openclaw/imessage",
+    "help": "OpenClaw iMessage channel plugin (plugin: imessage)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.imessage.enabled": {
+    "label": "Enable @openclaw/imessage",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.imessage.config": {
+    "label": "@openclaw/imessage Config",
+    "help": "Plugin-defined config payload for imessage.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.irc": {
+    "label": "@openclaw/irc",
+    "help": "OpenClaw IRC channel plugin (plugin: irc)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.irc.enabled": {
+    "label": "Enable @openclaw/irc",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.irc.config": {
+    "label": "@openclaw/irc Config",
+    "help": "Plugin-defined config payload for irc.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.line": {
+    "label": "@openclaw/line",
+    "help": "OpenClaw LINE channel plugin (plugin: line)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.line.enabled": {
+    "label": "Enable @openclaw/line",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.line.config": {
+    "label": "@openclaw/line Config",
+    "help": "Plugin-defined config payload for line.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.llm-task": {
+    "label": "LLM Task",
+    "help": "Generic JSON-only LLM tool for structured tasks callable from workflows. (plugin: llm-task)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.llm-task.enabled": {
+    "label": "Enable LLM Task",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.llm-task.config": {
+    "label": "LLM Task Config",
+    "help": "Plugin-defined config payload for llm-task.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lobster": {
+    "label": "Lobster",
+    "help": "Typed workflow tool with resumable approvals. (plugin: lobster)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lobster.enabled": {
+    "label": "Enable Lobster",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lobster.config": {
+    "label": "Lobster Config",
+    "help": "Plugin-defined config payload for lobster.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.matrix": {
+    "label": "@openclaw/matrix",
+    "help": "OpenClaw Matrix channel plugin (plugin: matrix)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.matrix.enabled": {
+    "label": "Enable @openclaw/matrix",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.matrix.config": {
+    "label": "@openclaw/matrix Config",
+    "help": "Plugin-defined config payload for matrix.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.mattermost": {
+    "label": "@openclaw/mattermost",
+    "help": "OpenClaw Mattermost channel plugin (plugin: mattermost)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.mattermost.enabled": {
+    "label": "Enable @openclaw/mattermost",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.mattermost.config": {
+    "label": "@openclaw/mattermost Config",
+    "help": "Plugin-defined config payload for mattermost.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.memory-core": {
+    "label": "@openclaw/memory-core",
+    "help": "OpenClaw core memory search plugin (plugin: memory-core)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.memory-core.enabled": {
+    "label": "Enable @openclaw/memory-core",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.memory-core.config": {
+    "label": "@openclaw/memory-core Config",
+    "help": "Plugin-defined config payload for memory-core.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.memory-lancedb": {
+    "label": "@openclaw/memory-lancedb",
+    "help": "OpenClaw LanceDB-backed long-term memory plugin with auto-recall/capture (plugin: memory-lancedb)",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.memory-lancedb.enabled": {
+    "label": "Enable @openclaw/memory-lancedb",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config": {
+    "label": "@openclaw/memory-lancedb Config",
+    "help": "Plugin-defined config payload for memory-lancedb.",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config.embedding.apiKey": {
+    "label": "OpenAI API Key",
+    "sensitive": true,
+    "placeholder": "sk-proj-...",
+    "help": "API key for OpenAI embeddings (or use ${OPENAI_API_KEY})",
+    "tags": [
+      "security",
+      "auth",
+      "storage"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config.embedding.model": {
+    "label": "Embedding Model",
+    "placeholder": "text-embedding-3-small",
+    "help": "OpenAI embedding model to use",
+    "tags": [
+      "storage",
+      "models"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config.embedding.baseUrl": {
+    "label": "Base URL",
+    "placeholder": "https://api.openai.com/v1",
+    "help": "Base URL for compatible providers (e.g. http://localhost:11434/v1)",
+    "advanced": true,
+    "tags": [
+      "storage",
+      "advanced"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config.embedding.dimensions": {
+    "label": "Dimensions",
+    "placeholder": "1536",
+    "help": "Vector dimensions for custom models (required for non-standard models)",
+    "advanced": true,
+    "tags": [
+      "storage",
+      "advanced"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config.dbPath": {
+    "label": "Database Path",
+    "placeholder": "~/.openclaw/memory/lancedb",
+    "advanced": true,
+    "tags": [
+      "storage",
+      "advanced"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config.autoCapture": {
+    "label": "Auto-Capture",
+    "help": "Automatically capture important information from conversations",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config.autoRecall": {
+    "label": "Auto-Recall",
+    "help": "Automatically inject relevant memories into context",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.memory-lancedb.config.captureMaxChars": {
+    "label": "Capture Max Chars",
+    "help": "Maximum message length eligible for auto-capture",
+    "advanced": true,
+    "placeholder": "500",
+    "tags": [
+      "performance",
+      "storage",
+      "advanced"
+    ]
+  },
+  "plugins.entries.minimax-portal-auth": {
+    "label": "@openclaw/minimax-portal-auth",
+    "help": "OpenClaw MiniMax Portal OAuth provider plugin (plugin: minimax-portal-auth)",
+    "tags": [
+      "performance"
+    ]
+  },
+  "plugins.entries.minimax-portal-auth.enabled": {
+    "label": "Enable @openclaw/minimax-portal-auth",
+    "tags": [
+      "performance"
+    ]
+  },
+  "plugins.entries.minimax-portal-auth.config": {
+    "label": "@openclaw/minimax-portal-auth Config",
+    "help": "Plugin-defined config payload for minimax-portal-auth.",
+    "tags": [
+      "performance"
+    ]
+  },
+  "plugins.entries.msteams": {
+    "label": "@openclaw/msteams",
+    "help": "OpenClaw Microsoft Teams channel plugin (plugin: msteams)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.msteams.enabled": {
+    "label": "Enable @openclaw/msteams",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.msteams.config": {
+    "label": "@openclaw/msteams Config",
+    "help": "Plugin-defined config payload for msteams.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.nextcloud-talk": {
+    "label": "@openclaw/nextcloud-talk",
+    "help": "OpenClaw Nextcloud Talk channel plugin (plugin: nextcloud-talk)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.nextcloud-talk.enabled": {
+    "label": "Enable @openclaw/nextcloud-talk",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.nextcloud-talk.config": {
+    "label": "@openclaw/nextcloud-talk Config",
+    "help": "Plugin-defined config payload for nextcloud-talk.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.nostr": {
+    "label": "@openclaw/nostr",
+    "help": "OpenClaw Nostr channel plugin for NIP-04 encrypted DMs (plugin: nostr)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.nostr.enabled": {
+    "label": "Enable @openclaw/nostr",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.nostr.config": {
+    "label": "@openclaw/nostr Config",
+    "help": "Plugin-defined config payload for nostr.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.open-prose": {
+    "label": "OpenProse",
+    "help": "OpenProse VM skill pack with a /prose slash command. (plugin: open-prose)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.open-prose.enabled": {
+    "label": "Enable OpenProse",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.open-prose.config": {
+    "label": "OpenProse Config",
+    "help": "Plugin-defined config payload for open-prose.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.phone-control": {
+    "label": "Phone Control",
+    "help": "Arm/disarm high-risk phone node commands (camera/screen/writes) with an optional auto-expiry. (plugin: phone-control)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.phone-control.enabled": {
+    "label": "Enable Phone Control",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.phone-control.config": {
+    "label": "Phone Control Config",
+    "help": "Plugin-defined config payload for phone-control.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.qwen-portal-auth": {
+    "label": "qwen-portal-auth",
+    "help": "Plugin entry for qwen-portal-auth.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.qwen-portal-auth.enabled": {
+    "label": "Enable qwen-portal-auth",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.qwen-portal-auth.config": {
+    "label": "qwen-portal-auth Config",
+    "help": "Plugin-defined config payload for qwen-portal-auth.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.signal": {
+    "label": "@openclaw/signal",
+    "help": "OpenClaw Signal channel plugin (plugin: signal)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.signal.enabled": {
+    "label": "Enable @openclaw/signal",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.signal.config": {
+    "label": "@openclaw/signal Config",
+    "help": "Plugin-defined config payload for signal.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.slack": {
+    "label": "@openclaw/slack",
+    "help": "OpenClaw Slack channel plugin (plugin: slack)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.slack.enabled": {
+    "label": "Enable @openclaw/slack",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.slack.config": {
+    "label": "@openclaw/slack Config",
+    "help": "Plugin-defined config payload for slack.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.synology-chat": {
+    "label": "@openclaw/synology-chat",
+    "help": "Synology Chat channel plugin for OpenClaw (plugin: synology-chat)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.synology-chat.enabled": {
+    "label": "Enable @openclaw/synology-chat",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.synology-chat.config": {
+    "label": "@openclaw/synology-chat Config",
+    "help": "Plugin-defined config payload for synology-chat.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.talk-voice": {
+    "label": "Talk Voice",
+    "help": "Manage Talk voice selection (list/set). (plugin: talk-voice)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.talk-voice.enabled": {
+    "label": "Enable Talk Voice",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.talk-voice.config": {
+    "label": "Talk Voice Config",
+    "help": "Plugin-defined config payload for talk-voice.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.telegram": {
+    "label": "Telegram",
+    "help": "Telegram channel plugin (plugin: telegram)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.telegram.enabled": {
+    "label": "Enable Telegram",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.telegram.config": {
+    "label": "Telegram Config",
+    "help": "Plugin-defined config payload for telegram.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.thread-ownership": {
+    "label": "Thread Ownership",
+    "help": "Prevents multiple agents from responding in the same Slack thread. Uses HTTP calls to the slack-forwarder ownership API. (plugin: thread-ownership)",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.thread-ownership.enabled": {
+    "label": "Enable Thread Ownership",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.thread-ownership.config": {
+    "label": "Thread Ownership Config",
+    "help": "Plugin-defined config payload for thread-ownership.",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.thread-ownership.config.forwarderUrl": {
+    "label": "Forwarder URL",
+    "help": "Base URL of the slack-forwarder ownership API (default: http://slack-forwarder:8750)",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.thread-ownership.config.abTestChannels": {
+    "label": "A/B Test Channels",
+    "help": "Slack channel IDs where thread ownership is enforced",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.tlon": {
+    "label": "@openclaw/tlon",
+    "help": "OpenClaw Tlon/Urbit channel plugin (plugin: tlon)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.tlon.enabled": {
+    "label": "Enable @openclaw/tlon",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.tlon.config": {
+    "label": "@openclaw/tlon Config",
+    "help": "Plugin-defined config payload for tlon.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.twitch": {
+    "label": "@openclaw/twitch",
+    "help": "OpenClaw Twitch channel plugin (plugin: twitch)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.twitch.enabled": {
+    "label": "Enable @openclaw/twitch",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.twitch.config": {
+    "label": "@openclaw/twitch Config",
+    "help": "Plugin-defined config payload for twitch.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call": {
+    "label": "@openclaw/voice-call",
+    "help": "OpenClaw voice-call plugin (plugin: voice-call)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.enabled": {
+    "label": "Enable @openclaw/voice-call",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config": {
+    "label": "@openclaw/voice-call Config",
+    "help": "Plugin-defined config payload for voice-call.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.provider": {
+    "label": "Provider",
+    "help": "Use twilio, telnyx, or mock for dev/no-network.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.fromNumber": {
+    "label": "From Number",
+    "placeholder": "+15550001234",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.toNumber": {
+    "label": "Default To Number",
+    "placeholder": "+15550001234",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.inboundPolicy": {
+    "label": "Inbound Policy",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.voice-call.config.allowFrom": {
+    "label": "Inbound Allowlist",
+    "tags": [
+      "access"
+    ]
+  },
+  "plugins.entries.voice-call.config.inboundGreeting": {
+    "label": "Inbound Greeting",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.telnyx.apiKey": {
+    "label": "Telnyx API Key",
+    "sensitive": true,
+    "tags": [
+      "security",
+      "auth"
+    ]
+  },
+  "plugins.entries.voice-call.config.telnyx.connectionId": {
+    "label": "Telnyx Connection ID",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.telnyx.publicKey": {
+    "label": "Telnyx Public Key",
+    "sensitive": true,
+    "tags": [
+      "security"
+    ]
+  },
+  "plugins.entries.voice-call.config.twilio.accountSid": {
+    "label": "Twilio Account SID",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.twilio.authToken": {
+    "label": "Twilio Auth Token",
+    "sensitive": true,
+    "tags": [
+      "security",
+      "auth"
+    ]
+  },
+  "plugins.entries.voice-call.config.outbound.defaultMode": {
+    "label": "Default Call Mode",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.outbound.notifyHangupDelaySec": {
+    "label": "Notify Hangup Delay (sec)",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.serve.port": {
+    "label": "Webhook Port",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.serve.bind": {
+    "label": "Webhook Bind",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.serve.path": {
+    "label": "Webhook Path",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.voice-call.config.tailscale.mode": {
+    "label": "Tailscale Mode",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tailscale.path": {
+    "label": "Tailscale Path",
+    "advanced": true,
+    "tags": [
+      "storage",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tunnel.provider": {
+    "label": "Tunnel Provider",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tunnel.ngrokAuthToken": {
+    "label": "ngrok Auth Token",
+    "sensitive": true,
+    "advanced": true,
+    "tags": [
+      "security",
+      "auth",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tunnel.ngrokDomain": {
+    "label": "ngrok Domain",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tunnel.allowNgrokFreeTierLoopbackBypass": {
+    "label": "Allow ngrok Free Tier (Loopback Bypass)",
+    "advanced": true,
+    "tags": [
+      "access",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.streaming.enabled": {
+    "label": "Enable Streaming",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.streaming.openaiApiKey": {
+    "label": "OpenAI Realtime API Key",
+    "sensitive": true,
+    "advanced": true,
+    "tags": [
+      "security",
+      "auth",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.streaming.sttModel": {
+    "label": "Realtime STT Model",
+    "advanced": true,
+    "tags": [
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.streaming.streamPath": {
+    "label": "Media Stream Path",
+    "advanced": true,
+    "tags": [
+      "storage",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tts.provider": {
+    "label": "TTS Provider Override",
+    "help": "Deep-merges with messages.tts (Edge is ignored for calls).",
+    "advanced": true,
+    "tags": [
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tts.openai.model": {
+    "label": "OpenAI TTS Model",
+    "advanced": true,
+    "tags": [
+      "models",
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tts.openai.voice": {
+    "label": "OpenAI TTS Voice",
+    "advanced": true,
+    "tags": [
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tts.openai.apiKey": {
+    "label": "OpenAI API Key",
+    "sensitive": true,
+    "advanced": true,
+    "tags": [
+      "security",
+      "auth",
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tts.elevenlabs.modelId": {
+    "label": "ElevenLabs Model ID",
+    "advanced": true,
+    "tags": [
+      "models",
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tts.elevenlabs.voiceId": {
+    "label": "ElevenLabs Voice ID",
+    "advanced": true,
+    "tags": [
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tts.elevenlabs.apiKey": {
+    "label": "ElevenLabs API Key",
+    "sensitive": true,
+    "advanced": true,
+    "tags": [
+      "security",
+      "auth",
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.tts.elevenlabs.baseUrl": {
+    "label": "ElevenLabs Base URL",
+    "advanced": true,
+    "tags": [
+      "media",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.publicUrl": {
+    "label": "Public Webhook URL",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.skipSignatureVerification": {
+    "label": "Skip Signature Verification",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.store": {
+    "label": "Call Log Store Path",
+    "advanced": true,
+    "tags": [
+      "storage",
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.responseModel": {
+    "label": "Response Model",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.responseSystemPrompt": {
+    "label": "Response System Prompt",
+    "advanced": true,
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.voice-call.config.responseTimeoutMs": {
+    "label": "Response Timeout (ms)",
+    "advanced": true,
+    "tags": [
+      "performance",
+      "advanced"
+    ]
+  },
+  "plugins.entries.whatsapp": {
+    "label": "@openclaw/whatsapp",
+    "help": "OpenClaw WhatsApp channel plugin (plugin: whatsapp)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.whatsapp.enabled": {
+    "label": "Enable @openclaw/whatsapp",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.whatsapp.config": {
+    "label": "@openclaw/whatsapp Config",
+    "help": "Plugin-defined config payload for whatsapp.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.zalo": {
+    "label": "@openclaw/zalo",
+    "help": "OpenClaw Zalo channel plugin (plugin: zalo)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.zalo.enabled": {
+    "label": "Enable @openclaw/zalo",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.zalo.config": {
+    "label": "@openclaw/zalo Config",
+    "help": "Plugin-defined config payload for zalo.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.zalouser": {
+    "label": "@openclaw/zalouser",
+    "help": "OpenClaw Zalo Personal Account plugin via native zca-js integration (plugin: zalouser)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.zalouser.enabled": {
+    "label": "Enable @openclaw/zalouser",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.zalouser.config": {
+    "label": "@openclaw/zalouser Config",
+    "help": "Plugin-defined config payload for zalouser.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lossless-claw": {
+    "label": "Lossless Context Management",
+    "help": "DAG-based conversation summarization with incremental compaction, full-text search, and sub-agent expansion (plugin: lossless-claw)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lossless-claw.enabled": {
+    "label": "Enable Lossless Context Management",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lossless-claw.config": {
+    "label": "Lossless Context Management Config",
+    "help": "Plugin-defined config payload for lossless-claw.",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lossless-claw.config.contextThreshold": {
+    "label": "Context Threshold",
+    "help": "Fraction of context window that triggers compaction (0.0–1.0)",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lossless-claw.config.incrementalMaxDepth": {
+    "label": "Incremental Max Depth",
+    "help": "How deep incremental compaction goes (0 = leaf only, -1 = unlimited)",
+    "tags": [
+      "performance"
+    ]
+  },
+  "plugins.entries.lossless-claw.config.freshTailCount": {
+    "label": "Fresh Tail Count",
+    "help": "Number of recent messages protected from compaction",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lossless-claw.config.dbPath": {
+    "label": "Database Path",
+    "help": "Path to LCM SQLite database (default: ~/.openclaw/lcm.db)",
+    "tags": [
+      "storage"
+    ]
+  },
+  "plugins.entries.lossless-claw.config.summaryModel": {
+    "label": "Summary Model",
+    "help": "Model override for LCM summarization (e.g., 'gpt-5.4' or 'openai-resp/gpt-5.4')",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "plugins.entries.lossless-claw.config.summaryProvider": {
+    "label": "Summary Provider",
+    "help": "Provider override for LCM summarization (e.g., 'openai-resp')",
+    "tags": [
+      "advanced"
+    ]
+  },
+  "agents.defaults.heartbeat.target": {
+    "help": "Delivery target (\"last\", \"none\", or a channel id). Known channels: telegram, whatsapp, discord, irc, googlechat, slack, signal, imessage, line.",
+    "placeholder": "last",
+    "tags": [
+      "automation"
+    ]
+  },
+  "agents.list.*.heartbeat.target": {
+    "help": "Delivery target (\"last\", \"none\", or a channel id). Known channels: telegram, whatsapp, discord, irc, googlechat, slack, signal, imessage, line.",
+    "placeholder": "last",
+    "tags": [
+      "automation"
     ]
   }
 }

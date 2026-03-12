@@ -6,11 +6,11 @@ import { findDiagnosticRange } from "./pathRanges";
 import { evaluatePluginValidationIssues } from "./pluginRules";
 
 type PluginDiagnosticsOptions = {
-  discovery: Pick<PluginDiscoveryResult, "plugins" | "channelSurfaces" | "providerSurfaces">;
+  discovery: Pick<PluginDiscoveryResult, "plugins" | "channelSurfaces" | "providerSurfaces" | "status">;
 };
 
 export class OpenClawPluginDiagnostics {
-  private readonly diagnostics = vscode.languages.createDiagnosticCollection("openclaw-plugins");
+  private readonly diagnostics = vscode.languages.createDiagnosticCollection("openclaw-advisory");
 
   dispose(): void {
     this.diagnostics.dispose();
@@ -50,7 +50,7 @@ export class OpenClawPluginDiagnostics {
           ? vscode.DiagnosticSeverity.Error
           : vscode.DiagnosticSeverity.Warning,
       );
-      diagnostic.source = "openclaw-plugins";
+      diagnostic.source = "openclaw-advisory";
       diagnostic.code = issue.path || issue.code;
       return diagnostic;
     });

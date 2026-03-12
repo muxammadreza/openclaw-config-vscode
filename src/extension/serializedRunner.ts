@@ -1,11 +1,11 @@
-export function createSerializedRunner<T>(
-  task: (input: T) => Promise<void>,
-): (input: T) => Promise<void> {
-  let queue: Promise<void> = Promise.resolve();
+export function createSerializedRunner<T, TResult>(
+  task: (input: T) => Promise<TResult>,
+): (input: T) => Promise<TResult> {
+  let queue: Promise<unknown> = Promise.resolve();
 
-  return async (input: T): Promise<void> => {
+  return async (input: T): Promise<TResult> => {
     const run = queue.catch(() => undefined).then(() => task(input));
     queue = run;
-    await run;
+    return run;
   };
 }

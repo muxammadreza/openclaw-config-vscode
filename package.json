@@ -1,7 +1,7 @@
 {
   "name": "openclaw-config-vscode",
   "displayName": "OpenClaw Config",
-  "description": "Lightweight VS Code support for openclaw.json with live schema updates and Zod shadow diagnostics.",
+  "description": "VS Code support for openclaw.json driven by authoritative OpenClaw runtime schema and plugin metadata.",
   "version": "0.1.5",
   "publisher": "muxammadreza",
   "packageManager": "pnpm@9.0.0",
@@ -35,7 +35,7 @@
   "files": [
     "dist/extension.js",
     "dist/extension.js.map",
-    "schemas/live/**",
+    "schemas/**",
     "snippets/**",
     "assets/icon.png",
     "README.md",
@@ -53,6 +53,10 @@
       {
         "command": "openclawConfig.refreshSchemaNow",
         "title": "OpenClaw: Refresh Schema Now"
+      },
+      {
+        "command": "openclawConfig.rebuildSchema",
+        "title": "OpenClaw: Rebuild Schema and Clear Caches"
       },
       {
         "command": "openclawConfig.insertSectionSnippet",
@@ -78,17 +82,12 @@
     "configuration": {
       "title": "OpenClaw Config",
       "properties": {
-        "openclawConfig.zodShadow.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable Zod shadow diagnostics for openclaw.json files."
-        },
         "openclawConfig.sync.ttlHours": {
           "type": "number",
           "default": 6,
           "minimum": 1,
           "maximum": 168,
-          "description": "Hours to cache live schema artifacts before checking for an update."
+          "description": "Hours to cache remote versioned schema artifacts before checking for an update."
         },
         "openclawConfig.sync.manifestUrl": {
           "type": "string",
@@ -145,20 +144,20 @@
           "default": "openclaw",
           "description": "Command or absolute path used to query locally installed OpenClaw plugins for editor schema overlays."
         },
-        "openclawConfig.plugins.codeTraversal": {
+        "openclawConfig.schema.preferredSource": {
           "type": "string",
-          "default": "installed-sources",
+          "default": "auto",
           "enum": [
-            "off",
-            "installed-sources",
-            "max-coverage"
+            "auto",
+            "gateway",
+            "remote"
           ],
-          "description": "How aggressively the extension should inspect installed plugin code when manifests and CLI metadata do not expose enough schema information."
+          "description": "Preferred schema source for troubleshooting. Auto uses gateway RPC first, then remote versioned schema artifacts."
         },
         "openclawConfig.sync.schemaVersion": {
           "type": "string",
           "default": "latest",
-          "description": "The specific OpenClaw version tag to sync schemas for (e.g. \"v2026.3.8\"). Use \"latest\" to always pull the most recent stable release."
+          "description": "Remote fallback schema version pin (for example \"v2026.3.8\"). When a local runtime is available, its version is preferred automatically."
         },
         "openclawConfig.updates.autoUpdate": {
           "type": "boolean",

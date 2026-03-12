@@ -214,12 +214,13 @@ describe("plugin overlays", () => {
         providerCount: 2,
         schemaBackedSurfaceCount: 4,
         assistiveOnlySurfaceCount: 1,
-        codeTraversalMode: "installed-sources",
         confidence: {
           explicit: 2,
           derived: 2,
           inferred: 1,
         },
+        authoritative: true,
+        warnings: [],
       },
     });
 
@@ -308,12 +309,13 @@ describe("plugin overlays", () => {
         providerCount: 0,
         schemaBackedSurfaceCount: 0,
         assistiveOnlySurfaceCount: 0,
-        codeTraversalMode: "installed-sources",
         confidence: {
           explicit: 0,
           derived: 0,
           inferred: 0,
         },
+        authoritative: true,
+        warnings: [],
       },
     });
 

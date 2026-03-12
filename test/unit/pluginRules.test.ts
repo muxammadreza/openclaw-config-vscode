@@ -24,6 +24,9 @@ describe("plugin validation rules", () => {
         ],
         channelSurfaces: [],
         providerSurfaces: [],
+        status: {
+          authoritative: true,
+        },
       },
     );
 
@@ -62,6 +65,9 @@ describe("plugin validation rules", () => {
         ],
         channelSurfaces: [],
         providerSurfaces: [],
+        status: {
+          authoritative: true,
+        },
       },
     );
 
@@ -116,6 +122,9 @@ describe("plugin validation rules", () => {
             originPluginId: "copilot-proxy",
           },
         ],
+        status: {
+          authoritative: true,
+        },
       },
     );
 
@@ -128,5 +137,38 @@ describe("plugin validation rules", () => {
       issues.some((issue) => issue.path === "models.providers.ghost-provider"),
       false,
     );
+  });
+
+  it("suppresses missing-plugin errors when discovery is degraded", () => {
+    const issues = evaluatePluginValidationIssues(
+      {
+        plugins: {
+          allow: ["ghost-plugin"],
+          entries: {
+            "ghost-plugin": {
+              enabled: true,
+            },
+          },
+          slots: {
+            memory: "ghost-plugin",
+          },
+        },
+        channels: {
+          ghostchannel: {
+            enabled: true,
+          },
+        },
+      },
+      {
+        plugins: [],
+        channelSurfaces: [],
+        providerSurfaces: [],
+        status: {
+          authoritative: false,
+        },
+      },
+    );
+
+    assert.deepEqual(issues, []);
   });
 });

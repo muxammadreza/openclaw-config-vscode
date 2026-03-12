@@ -23,11 +23,23 @@ type JsonLanguageServiceOptions = {
 };
 
 const RESOLVED_SCHEMA_URI = "openclaw-resolved://schema/openclaw.schema.json";
+const SCHEMA_PREP_TIMEOUT_MS = 4_000;
 
 export class OpenClawJsonLanguageService implements vscode.Disposable {
-  private readonly diagnostics = vscode.languages.createDiagnosticCollection("openclaw-json");
+  private readonly diagnostics = vscode.languages.createDiagnosticCollection("openclaw-schema");
   private readonly languageService = getLanguageService({});
   private schemaCache: Promise<Record<string, unknown>> | null = null;
+  private readonly contextCache = new Map<
+    string,
+    {
+      version: number;
+      value: {
+        document: TextDocument;
+        jsonDocument: JSONDocument;
+      };
+    }
+  >();
+  private timedOutOnce = false;
 
   constructor(private readonly options: JsonLanguageServiceOptions) {}
 
@@ -37,9 +49,11 @@ export class OpenClawJsonLanguageService implements vscode.Disposable {
 
   invalidateSchema(): void {
     this.schemaCache = null;
+    this.contextCache.clear();
   }
 
   clear(document: vscode.TextDocument): void {
+    this.contextCache.delete(document.uri.toString());
     this.diagnostics.delete(document.uri);
   }
 
@@ -83,9 +97,9 @@ export class OpenClawJsonLanguageService implements vscode.Disposable {
       vscode.languages.registerCompletionItemProvider(
         OPENCLAW_DOCUMENT_SELECTOR,
         {
-          provideCompletionItems: async (document, position) => {
+          provideCompletionItems: async (document, position, token) => {
             const languageContext = await this.createContext(document);
-            if (!languageContext) {
+            if (!languageContext || token.isCancellationRequested) {
               return null;
             }
             const completion = await this.languageService.doComplete(
@@ -104,9 +118,9 @@ export class OpenClawJsonLanguageService implements vscode.Disposable {
         ",",
       ),
       vscode.languages.registerHoverProvider(OPENCLAW_DOCUMENT_SELECTOR, {
-        provideHover: async (document, position) => {
+        provideHover: async (document, position, token) => {
           const languageContext = await this.createContext(document);
-          if (!languageContext) {
+          if (!languageContext || token.isCancellationRequested) {
             return null;
           }
           const hover = await this.languageService.doHover(
@@ -125,7 +139,20 @@ export class OpenClawJsonLanguageService implements vscode.Disposable {
     jsonDocument: JSONDocument;
   } | null> {
     try {
-      const schema = await this.getSchemaObject();
+      const cached = this.contextCache.get(document.uri.toString());
+      if (cached && cached.version === document.version) {
+        return cached.value;
+      }
+      const schema = await withTimeout(this.getSchemaObject(), SCHEMA_PREP_TIMEOUT_MS);
+      if (!schema) {
+        if (!this.timedOutOnce) {
+          this.timedOutOnce = true;
+          this.options.output.appendLine(
+            `[json-ls] Timed out resolving OpenClaw schema after ${SCHEMA_PREP_TIMEOUT_MS}ms.`,
+          );
+        }
+        return null;
+      }
       this.languageService.configure({
         allowComments: true,
         schemas: [
@@ -142,10 +169,15 @@ export class OpenClawJsonLanguageService implements vscode.Disposable {
         document.version,
         document.getText(),
       );
-      return {
+      const value = {
         document: textDocument,
         jsonDocument: this.languageService.parseJSONDocument(textDocument),
       };
+      this.contextCache.set(document.uri.toString(), {
+        version: document.version,
+        value,
+      });
+      return value;
     } catch (error) {
       this.options.output.appendLine(
         `[json-ls] Failed to prepare JSON language service: ${toErrorMessage(error)}`,
@@ -192,9 +224,16 @@ function toVsCodeDiagnostic(
     diagnostic.message,
     mapDiagnosticSeverity(diagnostic.severity),
   );
-  next.source = "openclaw-json";
+  next.source = "openclaw-schema";
   next.code = diagnostic.code;
   return next;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  const timeout = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), timeoutMs);
+  });
+  return Promise.race([promise, timeout]);
 }
 
 function mapDiagnosticSeverity(severity?: number): vscode.DiagnosticSeverity {

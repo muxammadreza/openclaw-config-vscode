@@ -1,0 +1,406 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.3.8",
+    "lastTouchedAt": "2026-03-09T22:14:00.547Z"
+  },
+  "wizard": {
+    "lastRunAt": "2026-03-08T08:18:13.318Z",
+    "lastRunVersion": "2026.3.7",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
+  "update": {
+    "auto": {
+      "enabled": true
+    }
+  },
+  "browser": {
+    "enabled": true,
+    "evaluateEnabled": true,
+    "headless": true,
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": true
+    }
+  },
+  "auth": {
+    "profiles": {
+      "openrouter:default": {
+        "provider": "openrouter",
+        "mode": "api_key"
+      },
+      "openai-codex:default": {
+        "provider": "openai-codex",
+        "mode": "oauth"
+      },
+      "google:default": {
+        "provider": "google",
+        "mode": "api_key"
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "agproxy": {
+        "baseUrl": "http://127.0.0.1:8045",
+        "apiKey": "api",
+        "api": "anthropic-messages",
+        "models": [
+          {
+            "id": "gemini-2.5-flash",
+            "name": "Gemini 2.5 Flash",
+            "reasoning": false,
+            "input": [
+              "text",
+              "image"
+            ]
+          }
+        ]
+      },
+      "copilot-vscode": {
+        "baseUrl": "http://127.0.0.1:3030/v1",
+        "apiKey": "copilot",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "gpt-4o",
+            "name": "GPT-4o (via Copilot for VSCode)",
+            "reasoning": true,
+            "input": [
+              "text",
+              "image"
+            ],
+            "contextWindow": 123712,
+            "maxTokens": 8000
+          },
+          {
+            "id": "oswe-vscode-prime",
+            "name": "OSWE-VSCode-Prime (via Copilot for VSCode)",
+            "reasoning": true,
+            "input": [
+              "text",
+              "image"
+            ],
+            "contextWindow": 199805,
+            "maxTokens": 4000
+          },
+          {
+            "id": "gpt-4.1",
+            "name": "GPT-4.1 (via Copilot for VSCode)",
+            "reasoning": true,
+            "input": [
+              "text",
+              "image"
+            ],
+            "contextWindow": 111424,
+            "maxTokens": 8000
+          },
+          {
+            "id": "gpt-5-mini",
+            "name": "GPT-5 Mini (via Copilot for VSCode)",
+            "reasoning": true,
+            "input": [
+              "text",
+              "image"
+            ],
+            "contextWindow": 127805,
+            "maxTokens": 8000
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/stepfun/step-3.5-flash:free@preset/free-dev"
+      },
+      "models": {
+        "openrouter/stepfun/step-3.5-flash:free@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/auto": {
+          "alias": "OpenRouter-free-auto",
+          "streaming": true
+        },
+        "openrouter/arcee-ai/trinity-large-preview:free@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/z-ai/glm-4.5-air:free@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/openai/gpt-oss-20b:free@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/openai/gpt-oss-120b:free@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/qwen/qwen3-vl-235b-a22b-thinking@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/qwen/qwen3-vl-30b-a3b-thinking@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/arcee-ai/trinity-mini:free@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/nvidia/nemotron-3-nano-30b-a3b:free@preset/free-dev": {
+          "streaming": true
+        },
+        "openrouter/liquid/lfm-2.5-1.2b-thinking:free@preset/free-dev": {
+          "streaming": true
+        },
+        "openai-codex/gpt-5.4": {
+          "alias": "GPT-5.4-codexcli",
+          "streaming": true
+        },
+        "openrouter/qwen/qwen3-next-80b-a3b-instruct:free@preset/free-dev": {
+          "streaming": true
+        },
+        "google/gemini-3.1-flash-lite-preview": {
+          "streaming": true
+        },
+        "google/gemini-3-flash-preview": {
+          "streaming": true
+        },
+        "google/gemini-2.5-flash": {
+          "streaming": true
+        },
+        "google/gemini-2.5-flash-lite-preview-09-2025": {
+          "streaming": true
+        },
+        "google/gemini-2.5-flash-native-audio-preview-12-2025": {},
+        "google/imagen-4.0-generate-001": {},
+        "google/imagen-4.0-ultra-generate-001": {},
+        "google/imagen-4.0-fast-generate-001": {},
+        "google/gemini-2.5-flash-preview-tts": {
+          "streaming": true
+        },
+        "google/gemini-embedding-001": {},
+        "agproxy/gemini-2.5-flash": {
+          "alias": "Gemini 2.5 Flash (via AGProxy)",
+          "streaming": true
+        },
+        "copilot-vscode/gpt-4o": {
+          "alias": "GPT-4o (via Copilot for VSCode)",
+          "streaming": true
+        },
+        "copilot-vscode/oswe-vscode-prime": {
+          "alias": "OSWE-VSCode-Prime (via Copilot for VSCode)",
+          "streaming": true
+        },
+        "copilot-vscode/gpt-4.1": {
+          "alias": "GPT-4.1 (via Copilot for VSCode)",
+          "streaming": true
+        },
+        "copilot-vscode/gpt-5-mini": {
+          "alias": "GPT-5 Mini (via Copilot for VSCode)",
+          "streaming": true
+        }
+      },
+      "workspace": "/Users/mo/.openclaw/workspace",
+      "memorySearch": {
+        "enabled": false
+      },
+      "compaction": {
+        "mode": "default"
+      }
+    },
+    "list": [
+      {
+        "id": "main",
+        "tools": {
+          "deny": [
+            "memory_search"
+          ]
+        }
+      }
+    ]
+  },
+  "tools": {
+    "profile": "full",
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "gemini"
+      }
+    },
+    "agentToAgent": {
+      "enabled": true
+    }
+  },
+  "commands": {
+    "native": true,
+    "nativeSkills": true,
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "session": {
+    "dmScope": "main",
+    "reset": {
+      "mode": "idle",
+      "idleMinutes": 43200
+    }
+  },
+  "hooks": {
+    "allowedAgentIds": [],
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "boot-md": {
+          "enabled": true
+        },
+        "bootstrap-extra-files": {
+          "enabled": true
+        },
+        "command-logger": {
+          "enabled": true
+        },
+        "session-memory": {
+          "enabled": true
+        }
+      }
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "d8830dee90e7c4c864b9e738594dd37a2f81da0492a565f1"
+    },
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "ghostSetting": true
+  },
+  "skills": {
+    "entries": {
+      "openai-image-gen": {
+        "enabled": false
+      },
+      "notion": {
+        "enabled": false
+      },
+      "nano-banana-pro": {
+        "enabled": false
+      },
+      "himalaya": {
+        "enabled": false
+      },
+      "goplaces": {
+        "enabled": false
+      },
+      "gh-issues": {
+        "enabled": false
+      },
+      "eightctl": {
+        "enabled": false
+      },
+      "1password": {
+        "enabled": false
+      },
+      "things-mac": {
+        "enabled": false
+      },
+      "xurl": {
+        "enabled": false
+      }
+    }
+  },
+  "plugins": {
+    "enabled": true,
+    "allow": [
+      "diffs",
+      "llm-task",
+      "lobster",
+      "open-prose",
+      "telegram",
+      "lossless-claw",
+      "memu-engine"
+    ],
+    "load": {
+      "paths": [
+        "/Users/mo/projects/memu-engine-for-OpenClaw"
+      ]
+    },
+    "slots": {
+      "memory": "memu-engine",
+      "contextEngine": "lossless-claw"
+    },
+    "entries": {
+      "memory-core": {
+        "enabled": false
+      },
+      "memory-lancedb": {
+        "enabled": false
+      },
+      "diffs": {
+        "enabled": true
+      },
+      "llm-task": {
+        "enabled": true
+      },
+      "lobster": {
+        "enabled": true
+      },
+      "open-prose": {
+        "enabled": true
+      },
+      "telegram": {
+        "enabled": true
+      },
+      "lossless-claw": {
+        "enabled": true,
+        "config": {
+          "freshTailCount": 32,
+          "contextThreshold": 0.75,
+          "incrementalMaxDepth": -1,
+          "summaryModel": "openrouter/stepfun/step-3.5-flash:free@preset/free-dev"
+        }
+      },
+      "memu-engine": {
+        "enabled": true,
+        "config": {
+          "embedding": {
+            "provider": "openai",
+            "baseUrl": "http://127.0.0.1:4444/v1",
+            "apiKey": "some-api-key",
+            "model": "jinaai/jina-embeddings-v5-text-small-mlx",
+            "strategyPreset": "jina-v5-retrieval"
+          },
+          "extraction": {
+            "provider": "openai",
+            "baseUrl": "https://127.0.0.1:4445/v1",
+            "apiKey": "api",
+            "model": "qwen/qwen3.5-9b"
+          },
+          "language": "en"
+        }
+      }
+    },
+    "installs": {
+      "lossless-claw": {
+        "source": "npm",
+        "spec": "@martian-engineering/lossless-claw",
+        "installPath": "/Users/mo/.openclaw/extensions/lossless-claw",
+        "version": "0.2.6",
+        "resolvedName": "@martian-engineering/lossless-claw",
+        "resolvedVersion": "0.2.6",
+        "resolvedSpec": "@martian-engineering/lossless-claw@0.2.6",
+        "integrity": "sha512-/uMh3/ebS19aQiAWOXKniJoQpjyl+KI5jLuF5gZg30t+Y8RvCawQFk0euirSjZqWVxW6Ud73YsyjywVxUO8+Ng==",
+        "shasum": "abf82f0c25c69e61b2e0d7ed7468f01bee459dd2",
+        "resolvedAt": "2026-03-09T21:29:30.936Z",
+        "installedAt": "2026-03-09T21:29:43.070Z"
+      },
+      "memu-engine": {
+        "source": "path",
+        "sourcePath": "/Users/mo/projects/memu-engine-for-OpenClaw",
+        "installPath": "/Users/mo/projects/memu-engine-for-OpenClaw",
+        "version": "0.3.3",
+        "installedAt": "2026-03-09T22:14:00.403Z"
+      }
+    }
+  }
+}

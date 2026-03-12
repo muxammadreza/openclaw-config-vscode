@@ -20,7 +20,11 @@ import { registerAutoUpdater } from "./extension/updater";
 
 const BACKGROUND_SYNC_INTERVAL_MS = 15 * 60 * 1_000;
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export type OpenClawExtensionApi = {
+  getGlobalStoragePath: () => string;
+};
+
+export async function activate(context: vscode.ExtensionContext): Promise<OpenClawExtensionApi> {
   const output = vscode.window.createOutputChannel("OpenClaw Config");
   context.subscriptions.push(output);
 
@@ -31,7 +35,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     output,
     readSettings,
     getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-    getExtensionPath: () => context.extensionPath,
     runtimeProfiles,
   });
   const schemaProvider = new OpenClawSchemaContentProvider();
@@ -65,7 +68,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   let initialized = false;
   let initializePromise: Promise<void> | null = null;
+  let startupSyncPromise: Promise<void> | null = null;
   let invalidateCatalog: () => void = () => {};
+
+  const refreshPluginDiagnostics = async (
+    document?: vscode.TextDocument,
+  ): Promise<void> => {
+    try {
+      const discovery = await resolvedArtifacts.getDiscoveryResult();
+      if (document) {
+        await pluginDiagnostics.validateDocument(document, { discovery });
+        return;
+      }
+      await pluginDiagnostics.revalidateAll({ discovery });
+    } catch (error) {
+      output.appendLine(`[plugins] Failed to refresh plugin diagnostics: ${toErrorMessage(error)}`);
+    }
+  };
 
   const validateDocument = async (originalDocument: vscode.TextDocument): Promise<void> => {
     if (!isOpenClawConfigDocument(originalDocument)) {
@@ -90,10 +109,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       integratorDiagnostics.validateDocument(workingDocument, {
         strictSecrets: settings.strictSecrets,
       }),
-      pluginDiagnostics.validateDocument(workingDocument, {
-        discovery: await resolvedArtifacts.getDiscoveryResult(),
-      }),
     ]);
+    void refreshPluginDiagnostics(workingDocument);
   };
 
   const ensureInitialized = async (reason: string): Promise<void> => {
@@ -123,23 +140,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           allowedRepositories: settings.allowedRepositories,
         },
       });
-
-      const initialSync = await artifacts.initialize(settings.ttlHours);
-      output.appendLine(`[init:${reason}] ${initialSync.message}`);
       initialized = true;
       resolvedArtifacts.invalidate();
       jsonLanguageService.invalidateSchema();
       invalidateCatalog();
+
+      startupSyncPromise ??= artifacts.initialize(settings.ttlHours)
+        .then(async (initialSync) => {
+          output.appendLine(`[init:${reason}] ${initialSync.message}`);
+          if (!initialSync.updated) {
+            return;
+          }
+          resolvedArtifacts.invalidate();
+          jsonLanguageService.invalidateSchema();
+          invalidateCatalog();
+          schemaProvider.refresh();
+          await revalidateOpenClawDocuments(runtime);
+        })
+        .catch((error) => {
+          output.appendLine(`[init:${reason}] Schema warmup failed: ${toErrorMessage(error)}`);
+        })
+        .finally(() => {
+          startupSyncPromise = null;
+        });
 
       await Promise.all(
         vscode.workspace.textDocuments
           .filter((document) => isOpenClawConfigDocument(document))
           .map((document) => validateDocument(document)),
       );
-
-      if (initialSync.updated) {
-        schemaProvider.refresh();
-      }
     })();
 
     try {
@@ -149,8 +178,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   };
 
+  const revalidateOpenClawDocuments = async (
+    runtime?: Awaited<ReturnType<typeof runtimeProfiles.getProfile>>,
+  ) => {
+    const settings = readSettings();
+    const effectiveRuntime =
+      runtime ??
+      (await runtimeProfiles.getProfile({
+        commandPath: settings.pluginCommandPath,
+        workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      }));
+    await Promise.all([
+      jsonLanguageService.revalidateAll(),
+      runtimeValidator.revalidateAll(effectiveRuntime),
+      integratorDiagnostics.revalidateAll({
+        strictSecrets: settings.strictSecrets,
+      }),
+    ]);
+    void refreshPluginDiagnostics();
+  };
+
   const syncAndRefresh = createSerializedRunner(async (force: boolean) => {
     await ensureInitialized(force ? "manual-refresh" : "sync");
+    if (startupSyncPromise) {
+      await startupSyncPromise;
+    }
     const settings = readSettings();
     runtimeProfiles.invalidate();
     const runtime = await runtimeProfiles.getProfile({
@@ -177,17 +229,43 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       jsonLanguageService.invalidateSchema();
       invalidateCatalog();
       schemaProvider.refresh();
-      await Promise.all([
-        jsonLanguageService.revalidateAll(),
-        runtimeValidator.revalidateAll(runtime),
-        integratorDiagnostics.revalidateAll({
-          strictSecrets: settings.strictSecrets,
-        }),
-        pluginDiagnostics.revalidateAll({
-          discovery: await resolvedArtifacts.getDiscoveryResult(),
-        }),
-      ]);
+      await revalidateOpenClawDocuments(runtime);
     }
+    return result;
+  });
+
+  const rebuildSchema = createSerializedRunner(async (_unused: undefined) => {
+    if (startupSyncPromise) {
+      await startupSyncPromise;
+    }
+    const settings = readSettings();
+    runtimeProfiles.invalidate();
+    await artifacts.clearCache();
+    resolvedArtifacts.invalidate();
+    jsonLanguageService.invalidateSchema();
+    invalidateCatalog();
+
+    const runtime = await runtimeProfiles.getProfile({
+      commandPath: settings.pluginCommandPath,
+      workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+    });
+    artifacts.configureRemote({
+      manifestUrl: settings.manifestUrl,
+      schemaVersion:
+        settings.schemaVersion !== "latest"
+          ? settings.schemaVersion
+          : runtime.versionTag,
+      securityPolicy: {
+        requireHttps: true,
+        allowedHosts: settings.allowedHosts,
+        allowedRepositories: settings.allowedRepositories,
+      },
+    });
+    const result = await artifacts.syncIfNeeded(settings.ttlHours, true);
+    output.appendLine(`[rebuild] ${result.message}`);
+    schemaProvider.refresh();
+    await revalidateOpenClawDocuments(runtime);
+    return result;
   });
 
   const catalog = createCatalogController({
@@ -229,7 +307,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     output,
     ensureInitialized,
     syncAndRefresh,
+    rebuildSchema: () => rebuildSchema(undefined),
     validateDocument,
+    getSchemaLookup: (pathExpression: string) => resolvedArtifacts.getSchemaLookup(pathExpression),
     getCatalog: catalog.getCatalog,
     getPluginEntries: catalog.getPluginEntries,
   });
@@ -250,11 +330,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     isOpenClawConfigDocument(document),
   );
   if (hasOpenDocuments) {
-    void ensureInitialized("startup-open-document");
+    void ensureInitialized("startup-open-document")
+      .then(() => catalog.getCatalog())
+      .catch((error) => {
+        output.appendLine(`[init:startup-open-document] Prewarm failed: ${toErrorMessage(error)}`);
+      });
   }
 
   output.appendLine(`[schema] Active schema URI: ${OPENCLAW_SCHEMA_URI}`);
   output.appendLine("[schema] Primary editor engine: embedded vscode-json-languageservice");
+
+  return {
+    getGlobalStoragePath: () => context.globalStorageUri.fsPath,
+  };
 }
 
 export function deactivate(): void {

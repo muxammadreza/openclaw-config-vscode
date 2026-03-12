@@ -16,20 +16,10 @@ export type SchemaManifestV1 = {
   artifacts: {
     schema: SchemaArtifactRecord;
     uiHints: SchemaArtifactRecord;
-    validator: SchemaArtifactRecord;
   };
 };
 
-export type OpenClawValidationIssue = {
-  path: string;
-  message: string;
-};
-
-export type OpenClawZodValidator = {
-  validate: (raw: unknown) => OpenClawValidationIssue[];
-};
-
-export type ArtifactSource = "cache" | "bundled";
+export type ArtifactSource = "cache" | "missing";
 
 export type SchemaSyncResult = {
   checked: boolean;
@@ -61,11 +51,26 @@ export type SchemaStatus = {
 
 export type PluginDiscoverySource = "cli" | "manifest-fallback" | "unavailable";
 
-export type PluginCodeTraversalMode = "off" | "installed-sources" | "max-coverage";
-
 export type DiscoveryConfidence = "explicit" | "derived" | "inferred";
 
-export type DiscoveredSurfaceSource = "cli" | "manifest" | "bundled-sdk" | "code-ast";
+export type DiscoveredSurfaceSource =
+  | "cli"
+  | "manifest"
+  | "gateway-rpc"
+  | "bundled-sdk"
+  | "code-ast";
+
+export type SchemaResolutionSource = "gateway-rpc" | "remote-versioned";
+
+export type SchemaPreferredSource = "auto" | "gateway" | "remote";
+
+export type SchemaCapabilities = {
+  gatewaySchema: boolean;
+  gatewaySchemaLookup: boolean;
+  runtimeValidateJson: boolean;
+  pluginListJson: boolean;
+  remoteVersionedFallback: boolean;
+};
 
 export type DiscoveredPlugin = {
   id: string;
@@ -76,6 +81,11 @@ export type DiscoveredPlugin = {
   status?: string;
   source?: string;
   origin?: string;
+  manifestPath?: string;
+  pluginRoot?: string;
+  declaredChannels?: string[];
+  declaredProviders?: string[];
+  declaredSkills?: string[];
   configJsonSchema?: Record<string, unknown>;
   configUiHints?: Record<string, Record<string, unknown>>;
 };
@@ -113,10 +123,10 @@ export type PluginDiscoveryStatus = {
   providerCount: number;
   schemaBackedSurfaceCount: number;
   assistiveOnlySurfaceCount: number;
-  codeTraversalMode: PluginCodeTraversalMode;
   confidence: Record<DiscoveryConfidence, number>;
+  authoritative: boolean;
+  warnings: string[];
   lastError?: string;
-  lastTraversalError?: string;
 };
 
 export type LocalRuntimeProfile = {
@@ -133,8 +143,12 @@ export type LocalRuntimeProfile = {
 export type ResolvedSchemaInfo = {
   requestedVersion: string;
   resolvedVersion?: string;
-  source: "bundled-versioned" | "live-artifacts";
+  source: SchemaResolutionSource;
   versionMatched: boolean;
+  openclawCommit?: string;
+  generatedAt?: string;
+  warnings: string[];
+  capabilities: SchemaCapabilities;
 };
 
 export type ResolvedSchemaStatus = {
@@ -142,6 +156,41 @@ export type ResolvedSchemaStatus = {
   pluginDiscovery: PluginDiscoveryStatus;
   runtime: LocalRuntimeProfile;
   resolvedSchema: ResolvedSchemaInfo;
+};
+
+export type SchemaLookupChild = {
+  key: string;
+  path: string;
+  type?: string | string[];
+  required?: boolean;
+  hasChildren?: boolean;
+  hint?: {
+    label?: string;
+    help?: string;
+  };
+  hintPath?: string;
+};
+
+export type SchemaLookupResult = {
+  path: string;
+  schema: Record<string, unknown>;
+  hint?: {
+    label?: string;
+    help?: string;
+  };
+  hintPath?: string;
+  children: SchemaLookupChild[];
+};
+
+export type ResolvedRuntimeSchemaSnapshot = {
+  schemaText: string;
+  uiHintsText: string;
+  openclawVersion?: string;
+  openclawCommit?: string;
+  generatedAt?: string;
+  source: SchemaResolutionSource;
+  capabilities: SchemaCapabilities;
+  warnings: string[];
 };
 
 export type DiagnosticFingerprint = string;

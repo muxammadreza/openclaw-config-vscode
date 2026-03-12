@@ -1,0 +1,12 @@
+{
+  "$schema": "openclaw-schema://live/openclaw.schema.json",
+  "channels": {
+    "whatsapp": {
+      "accounts": {
+        "default": {
+          "dynamicMode": 
+        }
+      }
+    }
+  }
+}

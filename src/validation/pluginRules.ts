@@ -9,7 +9,7 @@ const CHANNEL_BUILTINS = new Set(["defaults"]);
 
 export function evaluatePluginValidationIssues(
   config: unknown,
-  discovery: Pick<PluginDiscoveryResult, "plugins" | "channelSurfaces" | "providerSurfaces">,
+  discovery: Pick<PluginDiscoveryResult, "plugins" | "channelSurfaces" | "providerSurfaces" | "status">,
 ): PluginValidationIssue[] {
   if (!config || typeof config !== "object") {
     return [];
@@ -18,23 +18,29 @@ export function evaluatePluginValidationIssues(
   const issues: PluginValidationIssue[] = [];
   const pluginMap = new Map(discovery.plugins.map((plugin) => [plugin.id, plugin]));
   const channelIds = new Set(discovery.channelSurfaces.map((surface) => surface.id));
+  const authoritativeDiscovery = discovery.status?.authoritative ?? true;
   const typedConfig = config as Record<string, unknown>;
   const pluginsConfig = asRecord(typedConfig.plugins);
   if (pluginsConfig) {
-    issues.push(...checkPluginEntries(asRecord(pluginsConfig.entries), pluginMap));
-    issues.push(...checkPluginIdList("allow", asStringArray(pluginsConfig.allow), pluginMap));
-    issues.push(...checkPluginIdList("deny", asStringArray(pluginsConfig.deny), pluginMap));
-    issues.push(...checkPluginSlot("memory", asRecord(pluginsConfig.slots), pluginMap));
-    issues.push(...checkPluginSlot("contextEngine", asRecord(pluginsConfig.slots), pluginMap));
+    issues.push(...checkPluginEntries(asRecord(pluginsConfig.entries), pluginMap, authoritativeDiscovery));
+    if (authoritativeDiscovery) {
+      issues.push(...checkPluginIdList("allow", asStringArray(pluginsConfig.allow), pluginMap));
+      issues.push(...checkPluginIdList("deny", asStringArray(pluginsConfig.deny), pluginMap));
+      issues.push(...checkPluginSlot("memory", asRecord(pluginsConfig.slots), pluginMap));
+      issues.push(...checkPluginSlot("contextEngine", asRecord(pluginsConfig.slots), pluginMap));
+    }
   }
 
-  issues.push(...checkChannels(asRecord(typedConfig.channels), channelIds));
+  if (authoritativeDiscovery) {
+    issues.push(...checkChannels(asRecord(typedConfig.channels), channelIds));
+  }
   return issues;
 }
 
 function checkPluginEntries(
   entries: Record<string, unknown> | null,
   pluginMap: Map<string, DiscoveredPlugin>,
+  authoritativeDiscovery: boolean,
 ): PluginValidationIssue[] {
   if (!entries) {
     return [];
@@ -45,12 +51,14 @@ function checkPluginEntries(
     const entry = asRecord(entryValue);
     const discovered = pluginMap.get(pluginId);
     if (!discovered) {
-      issues.push({
-        code: "plugin-entry-missing",
-        path: `plugins.entries.${pluginId}`,
-        message: `Plugin entry references an undiscovered plugin "${pluginId}".`,
-        severity: "warning",
-      });
+      if (authoritativeDiscovery) {
+        issues.push({
+          code: "plugin-entry-missing",
+          path: `plugins.entries.${pluginId}`,
+          message: `Plugin entry references an undiscovered plugin "${pluginId}".`,
+          severity: "warning",
+        });
+      }
       continue;
     }
 

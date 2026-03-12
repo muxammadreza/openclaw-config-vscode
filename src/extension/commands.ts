@@ -3,7 +3,12 @@ import path from "node:path";
 import * as vscode from "vscode";
 import { CONFIG_FILE_NAME } from "../schema/constants";
 import { buildFieldExplainMarkdown, findPathAtOffset } from "../schema/explain";
-import type { DynamicSubfieldCatalog, PluginHintEntry, ResolvedSchemaStatus } from "../schema/types";
+import type {
+  DynamicSubfieldCatalog,
+  PluginHintEntry,
+  ResolvedSchemaStatus,
+  SchemaLookupResult,
+} from "../schema/types";
 import { buildDynamicSectionSnippets } from "../templating/dynamicCatalog";
 import { normalizeOpenClawConfigText } from "../templating/normalize";
 import { SECTION_SNIPPETS, STARTER_TEMPLATE } from "../templating/templates";
@@ -19,8 +24,10 @@ type CommandRegistrationOptions = {
   };
   output: vscode.OutputChannel;
   ensureInitialized: (reason: string) => Promise<void>;
-  syncAndRefresh: (force: boolean) => Promise<void>;
+  syncAndRefresh: (force: boolean) => Promise<unknown>;
+  rebuildSchema: () => Promise<unknown>;
   validateDocument: (document: vscode.TextDocument) => Promise<void>;
+  getSchemaLookup: (pathExpression: string) => Promise<SchemaLookupResult | null>;
   getCatalog: () => Promise<DynamicSubfieldCatalog | null>;
   getPluginEntries: () => readonly PluginHintEntry[];
 };
@@ -28,18 +35,24 @@ type CommandRegistrationOptions = {
 export function registerOpenClawCommands(options: CommandRegistrationOptions): void {
   options.context.subscriptions.push(
     vscode.commands.registerCommand("openclawConfig.refreshSchemaNow", async () => {
-      await options.syncAndRefresh(true);
+      const result = await options.syncAndRefresh(true);
       void vscode.window.showInformationMessage("OpenClaw schema refresh completed.");
+      return result;
+    }),
+    vscode.commands.registerCommand("openclawConfig.rebuildSchema", async () => {
+      const result = await options.rebuildSchema();
+      void vscode.window.showInformationMessage("OpenClaw schema rebuilt and stale caches cleared.");
+      return result;
     }),
     vscode.commands.registerCommand("openclawConfig.showSchemaStatus", async () => {
       await options.ensureInitialized("show-status");
       const status = await options.artifacts.getStatus();
 
       const lines = [
-        `source: ${status.artifacts.source}`,
+        `remoteFallback.source: ${status.artifacts.source}`,
         `manifestUrl: ${status.artifacts.manifestUrl}`,
-        `openclawCommit: ${status.artifacts.openclawCommit ?? "n/a"}`,
-        `generatedAt: ${status.artifacts.generatedAt ?? "n/a"}`,
+        `remoteFallback.openclawCommit: ${status.artifacts.openclawCommit ?? "n/a"}`,
+        `remoteFallback.generatedAt: ${status.artifacts.generatedAt ?? "n/a"}`,
         `lastCheckedAt: ${status.artifacts.lastCheckedAt ?? "n/a"}`,
         `lastSuccessfulSyncAt: ${status.artifacts.lastSuccessfulSyncAt ?? "n/a"}`,
         `lastError: ${status.artifacts.lastError ?? "none"}`,
@@ -50,14 +63,13 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
         `pluginDiscovery.pluginCount: ${status.pluginDiscovery.pluginCount}`,
         `pluginDiscovery.channelCount: ${status.pluginDiscovery.channelCount}`,
         `pluginDiscovery.providerCount: ${status.pluginDiscovery.providerCount}`,
+        `pluginDiscovery.authoritative: ${status.pluginDiscovery.authoritative}`,
         `pluginDiscovery.schemaBackedSurfaceCount: ${status.pluginDiscovery.schemaBackedSurfaceCount}`,
         `pluginDiscovery.assistiveOnlySurfaceCount: ${status.pluginDiscovery.assistiveOnlySurfaceCount}`,
-        `pluginDiscovery.codeTraversalMode: ${status.pluginDiscovery.codeTraversalMode}`,
         `pluginDiscovery.confidence.explicit: ${status.pluginDiscovery.confidence.explicit}`,
         `pluginDiscovery.confidence.derived: ${status.pluginDiscovery.confidence.derived}`,
         `pluginDiscovery.confidence.inferred: ${status.pluginDiscovery.confidence.inferred}`,
         `pluginDiscovery.lastError: ${status.pluginDiscovery.lastError ?? "none"}`,
-        `pluginDiscovery.lastTraversalError: ${status.pluginDiscovery.lastTraversalError ?? "none"}`,
         `runtime.available: ${status.runtime.available}`,
         `runtime.commandPath: ${status.runtime.commandPath}`,
         `runtime.version: ${status.runtime.version ?? "n/a"}`,
@@ -67,8 +79,15 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
         `runtime.lastError: ${status.runtime.lastError ?? "none"}`,
         `resolvedSchema.requestedVersion: ${status.resolvedSchema.requestedVersion}`,
         `resolvedSchema.resolvedVersion: ${status.resolvedSchema.resolvedVersion ?? "n/a"}`,
+        `resolvedSchema.openclawCommit: ${status.resolvedSchema.openclawCommit ?? "n/a"}`,
+        `resolvedSchema.generatedAt: ${status.resolvedSchema.generatedAt ?? "n/a"}`,
         `resolvedSchema.source: ${status.resolvedSchema.source}`,
         `resolvedSchema.versionMatched: ${status.resolvedSchema.versionMatched}`,
+        `resolvedSchema.capabilities.gatewaySchema: ${status.resolvedSchema.capabilities.gatewaySchema}`,
+        `resolvedSchema.capabilities.gatewaySchemaLookup: ${status.resolvedSchema.capabilities.gatewaySchemaLookup}`,
+        `resolvedSchema.capabilities.runtimeValidateJson: ${status.resolvedSchema.capabilities.runtimeValidateJson}`,
+        `resolvedSchema.capabilities.pluginListJson: ${status.resolvedSchema.capabilities.pluginListJson}`,
+        `resolvedSchema.capabilities.remoteVersionedFallback: ${status.resolvedSchema.capabilities.remoteVersionedFallback}`,
       ];
       if (status.artifacts.policy.artifacts.length > 0) {
         lines.push(`policy.artifacts.count: ${status.artifacts.policy.artifacts.length}`);
@@ -77,6 +96,18 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
           lines.push(`policy.artifacts[${index}].reason: ${evaluation.reason}`);
           lines.push(`policy.artifacts[${index}].host: ${evaluation.host ?? "n/a"}`);
           lines.push(`policy.artifacts[${index}].repository: ${evaluation.repository ?? "n/a"}`);
+        });
+      }
+      if (status.pluginDiscovery.warnings.length > 0) {
+        lines.push(`pluginDiscovery.warnings.count: ${status.pluginDiscovery.warnings.length}`);
+        status.pluginDiscovery.warnings.forEach((warning, index) => {
+          lines.push(`pluginDiscovery.warnings[${index}]: ${warning}`);
+        });
+      }
+      if (status.resolvedSchema.warnings.length > 0) {
+        lines.push(`resolvedSchema.warnings.count: ${status.resolvedSchema.warnings.length}`);
+        status.resolvedSchema.warnings.forEach((warning, index) => {
+          lines.push(`resolvedSchema.warnings[${index}]: ${warning}`);
         });
       }
 
@@ -89,6 +120,7 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
       void vscode.window.showInformationMessage(
         `OpenClaw runtime=${status.runtime.version ?? "n/a"}, schema=${status.resolvedSchema.resolvedVersion ?? "live"}`,
       );
+      return status;
     }),
     vscode.commands.registerCommand("openclawConfig.newConfig", async () => {
       await options.ensureInitialized("new-config");
@@ -143,10 +175,12 @@ export function registerOpenClawCommands(options: CommandRegistrationOptions): v
       const pathAtCursor =
         findPathAtOffset(editor.document.getText(), editor.document.offsetAt(editor.selection.active)) ??
         "";
+      const lookup = pathAtCursor ? await options.getSchemaLookup(pathAtCursor) : null;
       const markdown = buildFieldExplainMarkdown(
         pathAtCursor,
         catalog,
         await options.artifacts.getUiHintsText(),
+        lookup,
       );
 
       const doc = await vscode.workspace.openTextDocument({
