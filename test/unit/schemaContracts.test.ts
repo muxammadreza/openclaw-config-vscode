@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { findNodeAtLocation, parseTree } from "jsonc-parser";
 import { describe, it } from "vitest";
 import { getLanguageService } from "vscode-json-languageservice";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   assertKeyPresentInCatalog,
   buildHoverMarkdown,
+  buildKeyCompletionDocument,
+  buildValueCompletionDocument,
   createSchemaContractMatrix,
 } from "../../src/schema/contractMatrix";
+import { findPathAtOffset } from "../../src/schema/explain";
 import { resolveDynamicSubfieldsWithMatches } from "../../src/schema/dynamicSubfields";
+import { resolveCompletionContext } from "../../src/templating/completion/context";
 import { buildValueCompletionSuggestions } from "../../src/templating/completion/items";
 import { evaluateIntegratorIssues } from "../../src/validation/integratorRules";
 import { computeQuickFixText } from "../../src/validation/codeActions/text";
@@ -68,6 +73,67 @@ describe("schema contract coverage", () => {
       assert.ok(
         expectedLabels.some((candidates) => candidates.some((candidate) => labels.includes(candidate))),
         `missing constrained value completion for ${contract.fullConcretePath}`,
+      );
+    }
+  });
+
+  it("resolves every hover cursor position back to the exact schema path", () => {
+    assert.ok(matrix.keyContracts.length > 200, "expected broad hover path coverage");
+    for (const contract of matrix.keyContracts) {
+      const config: Record<string, unknown> = {};
+      assignPath(config, contract.fullConcretePath, null);
+      const text = JSON.stringify(config, null, 2);
+      const keyOffset = findPropertyKeyOffset(text, contract.fullConcretePath);
+      assert.notEqual(keyOffset, -1, `missing property key offset for ${contract.fullConcretePath}`);
+      assert.equal(
+        findPathAtOffset(text, keyOffset),
+        contract.fullConcretePath,
+        `incorrect hover path at property key for ${contract.fullConcretePath}`,
+      );
+
+      const valueOffset = findPropertyValueOffset(text, contract.fullConcretePath);
+      assert.notEqual(valueOffset, -1, `missing property value offset for ${contract.fullConcretePath}`);
+      assert.equal(
+        findPathAtOffset(text, valueOffset),
+        contract.fullConcretePath,
+        `incorrect hover path at property value for ${contract.fullConcretePath}`,
+      );
+    }
+  });
+
+  it("resolves completion context correctly for every key and constrained value path", () => {
+    assert.ok(matrix.keyContracts.length > 200, "expected broad completion context coverage");
+    for (const contract of matrix.keyContracts) {
+      const fixture = buildKeyCompletionDocument(contract.parentConcretePath);
+      const text = fixture.text.replace(fixture.marker, "");
+      const offset = fixture.text.indexOf(fixture.marker);
+      const context = resolveCompletionContext(text, offset);
+      assert.deepEqual(
+        context,
+        {
+          mode: "objectKey",
+          objectPath: wildcardPath(contract.parentConcretePath),
+          existingKeys: new Set<string>(),
+        },
+        `incorrect key completion context for ${contract.fullConcretePath}`,
+      );
+    }
+
+    assert.ok(matrix.valueContracts.length > 50, "expected constrained value completion context coverage");
+    for (const contract of matrix.valueContracts) {
+      const fixture = buildValueCompletionDocument(contract.parentConcretePath, contract.key);
+      const text = fixture.text.replace(fixture.marker, "");
+      const offset = fixture.text.indexOf(fixture.marker);
+      const context = resolveCompletionContext(text, offset);
+      assert.deepEqual(
+        context,
+        {
+          mode: "propertyValue",
+          objectPath: wildcardPath(contract.parentConcretePath),
+          propertyKey: contract.key,
+          existingKeys: new Set<string>([contract.key]),
+        },
+        `incorrect value completion context for ${contract.fullConcretePath}`,
       );
     }
   });
@@ -134,6 +200,26 @@ function buildUnknownFixture(baseConfig: Record<string, unknown>, pathExpression
   return JSON.stringify(clone, null, 2);
 }
 
+function findPropertyKeyOffset(text: string, pathExpression: string): number {
+  const node = findNodeByPath(text, pathExpression);
+  const propertyNode = node?.parent?.type === "property" ? node.parent : null;
+  const keyNode = propertyNode?.children?.[0];
+  return typeof keyNode?.offset === "number" ? keyNode.offset + 1 : -1;
+}
+
+function findPropertyValueOffset(text: string, pathExpression: string): number {
+  const node = findNodeByPath(text, pathExpression);
+  return typeof node?.offset === "number" ? node.offset : -1;
+}
+
+function findNodeByPath(text: string, pathExpression: string) {
+  const root = parseTree(text);
+  if (!root) {
+    return null;
+  }
+  return findNodeAtLocation(root, parseIssuePath(pathExpression));
+}
+
 function assignPath(root: Record<string, unknown>, pathExpression: string, value: unknown): void {
   let current: Record<string, unknown> | unknown[] = root;
   const segments = pathExpression.split(".").filter(Boolean);
@@ -173,6 +259,21 @@ function assignPath(root: Record<string, unknown>, pathExpression: string, value
 
 function isArrayIndex(value: string | undefined): boolean {
   return Boolean(value && /^\d+$/.test(value));
+}
+
+function parseIssuePath(pathExpression: string): Array<string | number> {
+  return pathExpression
+    .split(".")
+    .filter(Boolean)
+    .map((segment) => (isArrayIndex(segment) ? Number(segment) : segment));
+}
+
+function wildcardPath(pathExpression: string): string {
+  return pathExpression
+    .split(".")
+    .filter(Boolean)
+    .map((segment) => (isArrayIndex(segment) ? "*" : segment))
+    .join(".");
 }
 
 function escapeRegExp(value: string): string {

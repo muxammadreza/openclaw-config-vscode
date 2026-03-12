@@ -30,6 +30,18 @@ export function resolveCompletionContext(text: string, offset: number): Completi
     return { mode: "none" };
   }
 
+  const containingObject = findContainingObjectNode(root, safeOffset);
+  if (containingObject) {
+    const activeProperty = findClosestPropertyNode(node);
+    if (!activeProperty || findOwnerObject(activeProperty) !== containingObject) {
+      return {
+        mode: "objectKey",
+        objectPath: normalizePath(getNodePath(containingObject)),
+        existingKeys: collectExistingObjectKeys(containingObject),
+      };
+    }
+  }
+
   const activeProperty = findClosestPropertyNode(node);
   if (activeProperty) {
     const valueNode = activeProperty.children?.[1];
@@ -95,6 +107,35 @@ function findClosestObjectNode(node: Node | undefined): Node | null {
       return current;
     }
     current = current.parent;
+  }
+  return null;
+}
+
+function findContainingObjectNode(root: Node, offset: number): Node | null {
+  if (root.type !== "object" && root.type !== "array") {
+    return findContainingObjectInChildren(root, offset);
+  }
+  if (!isOffsetWithinNode(offset, root)) {
+    return null;
+  }
+  if (root.type === "object") {
+    for (const child of root.children ?? []) {
+      const nested = findContainingObjectNode(child, offset);
+      if (nested) {
+        return nested;
+      }
+    }
+    return root;
+  }
+  return findContainingObjectInChildren(root, offset);
+}
+
+function findContainingObjectInChildren(node: Node, offset: number): Node | null {
+  for (const child of node.children ?? []) {
+    const nested = findContainingObjectNode(child, offset);
+    if (nested) {
+      return nested;
+    }
   }
   return null;
 }
